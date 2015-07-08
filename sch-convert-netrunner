@@ -1,0 +1,412 @@
+﻿#!/bin/dash
+# File:      sch-convert-netrunner
+# Created:   22/09/2014
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. /usr/bin/sch-includes
+
+strip_netrunner()
+# Purpose: remove stuff we won't want on the schooner system
+# Args:    none
+# Returns: 0:success 1:fail
+{
+	apt-get --yes --purge remove 	gnome-chess || abend '64518'
+	apt-get --yes --purge remove 	gnudoq || abend '33380'
+	#apt-get --yes --purge remove 	kate || abend '29317'
+	apt-get --yes --purge remove 	karbon || abend '75850'
+	apt-get --yes --purge remove	yakuake || abend '76061'
+	apt-get --yes --purge remove 	qmmp || abend '90141'
+	apt-get --yes --purge remove 	krdc || abend '785674'
+	apt-get --yes --purge remove 	kdenlive || abend '46545'
+	apt-get --yes --purge remove	telnet || abend '46475'
+	apt-get --yes --purge remove	konqueror || abend '90865'
+	apt-get --yes --purge remove	steam || abend '65645'
+	apt-get --yes --purge remove	ksnake || abend '65444'
+	apt-get --yes --purge remove	steam || abend '65645'
+	apt-get --yes --purge remove	steam || abend '65645'
+	apt-get --yes --purge remove	libreoffice || abend '09087'
+	apt-get --yes --purge remove	gufw || abend '75034' # will install ufw-kde (ie kcm module) later
+	return 0
+}
+
+add_infrastructure()
+# Purpose: add stuff needed for following installations
+# Returns: 0:success 1:fail
+{
+	apt-get --yes install 	python-pip || abend '45796'
+	apt-get --yes install	python3-pip || abend '12885'
+	apt-get --yes install	gdebi-core || abend '84570'
+	apt-get --yes install	ppa-purge || abend '34027'
+	pip install iniparse || abend '74992'
+
+	return 0
+}
+
+add_ppas()
+# Purpose: add all ppas
+# Returns: 0:success 1:fail
+{
+	add-apt-repository --yes ppa:libreoffice/ppa  || abend '09897'
+	add-apt-repository --yes ppa:inkscape.dev/stable || abend '57685'
+	add-apt-repository --yes ppa:samrog131/ppa || abend '53986'
+	#won't work currently - think problem is dependency on libx265-31
+	#which has been updated to libx265-32
+	add-apt-repository --yes ppa:mc3man/trusty-media || abend '99753' #for vlc
+	add-apt-repository --yes ppa:recoll-backports/recoll-1.15-on || abend '49657'
+	add-apt-repository --yes  ppa:dlynch3/ppa || abend '49687'
+	add-apt-repository --yes  ppa:cesar-crea-si/eviacam || abend '88786'
+	#only added this to get latest entangle and rapid photo downloader - remeove when possible
+	#because it drags in stuff it shouldn't
+	add-apt-repository --yes  ppa:anton+/photo-video-apps || abend '09987'
+	apt-get update
+	return 0
+}
+
+add_misc_packages()
+# Purpose: install as much as possible in one hit
+# Returns: 0:success 1:fail
+{
+	# games
+	apt-get --yes install	kreversi  || abend '90897'
+	apt-get --yes install	kshisen  || abend '98986'
+	apt-get --yes install	kfourinline  || abend '90823'
+	apt-get --yes install	ksudoku  || abend '15645'
+	apt-get --yes install	kapman   || abend '15645'
+	apt-get --yes install	kblocks  || abend '78653'
+	apt-get --yes install	kdgames-card-data-xtra  || abend '89768'
+	apt-get --yes install	kiriki  || abend '37673'
+	apt-get --yes install	kollision  || abend '99897'
+	apt-get --yes install	kubrick  || abend '39887'
+	apt-get --yes install	lskat  || abend '78675'
+	apt-get --yes install	pairs  || abend '67566'
+	apt-get --yes install	picmi  || abend '33654'
+	apt-get --yes install	ksudoku  || abend '18793'
+	apt-get --yes install	ktuberling  || abend '75883'
+	apt-get --yes install	ksquares  || abend '99465'
+	apt-get --yes install	blinken  || abend '99675'
+	apt-get --yes install	kblackbox || abend '87767'
+	apt-get --yes install	kgoldrunner || abend '67450'
+	apt-get --yes install	kigo  || abend '97745'
+	apt-get --yes install	kjumpingcube || abend '99541'
+	apt-get --yes install	klickety || abend '89654'
+	apt-get --yes install	klines || abend '89467'
+	apt-get --yes install	palapeli || abend '09897'
+	apt-get --yes install	ktnef  || abend '09097' # microsoft srvr mail format viewer - okular can't do tnef	
+	
+	# accessibility
+	apt-get --yes install	fonts-opendyslexic  || abend '90856'
+	apt-get --yes install	florence || abend '44543'
+	apt-get --yes install	eviacam || abend '09087'
+	apt-get --yes install	dasher || abend '89878'
+	apt-get --yes install	rsibreak || abend '55467'
+	apt-get --yes install	plasma-widget-kbstate || abend '88776'
+	
+	# thumbnailers from main repos
+	apt-get --yes install	kde-thumbnailer-deb  || abend '21102'
+	apt-get --yes install	kde-thumbnailer-openoffice  || abend '90823'
+	apt-get --yes install	kdegraphics-mobipocket || abend '40771'
+	apt-get --yes install	kdegraphics-thumbnailers || abend '99945'
+	apt-get --yes install	kde-thumbnailer-apk || abend '62831'
+	
+	# thumbnailers
+	apt-get --yes install	kde-thumbnailer-epub || abend '27833'	
+	apt-get --yes install	kde-thumbnailer-audiothumbs || abend '55988'
+	apt-get --yes install	kde-thumbnailer-cb7thumbnails || abend '83564'
+	apt-get --yes install	kde-thumbnailer-chm || abend '00911'
+	apt-get --yes install	kde-thumbnailer-fb2 || abend '51364'
+	apt-get --yes install	kde-thumbnailer-moviethumbs || abend '30144'
+	apt-get --yes install	ooo-thumbnailer || abend '30144'
+	apt-get --yes install	kde-thumbnailer-wmf || abend '30144'
+	
+#	# thumbnailers from local deb TODO check out these they fail
+	#gdebi -n $BFILES/kde-thumbnailer-blender_0.3kayosiiiubuntu1_i386.deb || abend '06863'
+	##gdebi -n $BFILES/kde-thumbnailer-wings3d_0.2kayosiii5ubuntu1_i386.deb || abend '06863'
+
+	# deja-dup
+	apt-get --yes install	deja-dup || abend '86941'
+	apt-get --yes install	deja-dup-backend-s3 || abend '47582'
+	apt-get --yes install	deja-dup-backend-cloudfiles || abend '02684'
+	apt-get --yes install	deja-dup-backend-gvfs || abend '99141'
+
+	# K3B helpers
+	apt-get --yes install 	normalize-audio || abend '22548'
+	apt-get --yes install	sox || abend '34975'
+	apt-get --yes install	transcode || abend '42870'
+	#need to add emovix
+	
+	# graphics multimedia and photo
+	apt-get --yes install	vlc-browser-plugin || abend '78676'
+	apt-get --yes install	openshot || abend '87765'
+	apt-get --yes install	tupi || abend '54398'
+	apt-get --yes install	gnome-color-manager || abend '88785'
+	apt-get --yes install	inkscape || abend '63678'
+	apt-get --yes install	audacity || abend '67546'
+	apt-get --yes install	digikam || abend '93474'
+	apt-get --yes install	entangle || abend '09034'
+	
+	# misc
+	
+	apt-get --yes install	wkhtmltopdf  || abend '99867' #convert html to pdf - for service menus
+	apt-get --yes install	jpegoptim  || abend '00967' #jpeg optimiser
+	#apt-get --yes install	pngquant  || abend '88756' #png optimiser - currently crashes - debian bug #742451
+	apt-get --yes install	pngnq  || abend '35422' #png optimiser - alternative to pngquant	
+	apt-get --yes install	notify-osd || abend '34593' #dolphin checksum service menu needs it
+	# TODO could these and the libnotify4 package have overlaps/redundancy?
+	apt-get --yes install	filelight || abend '04522'
+	apt-get --yes install	speedcrunch || abend '87345'
+	apt-get --yes install	sqlite3 || abend '82156'	
+	apt-get --yes install	plasma-addons || abend '46721'	
+	apt-get --yes install	kde-service-menu-fuseiso || abend '31319'	
+	apt-get --yes install	kde-service-menu-kim4 || abend '30064'#notify-osd required by dolphin md5 service menu
+	#apt-get --yes install	libmygpo-qt1 || abend '15691'
+	apt-get --yes install	xclip || abend '92641'
+	apt-get --yes install	kde-config-cddb || abend '32346'
+	#apt-get --yes install	adobe-flash-properties-kde || abend '82693'# removed as has dependencies that can't be satisfied
+	apt-get --yes install	ktouch || abend '85028'
+	#apt-get --yes install	kubuntu-driver-manager || abend '90548'		
+	apt-get --yes install	kcharselect || abend '60783'
+	apt-get --yes install	qdbus || abend '87490'
+	apt-get --yes install	qdbus-qt5 || abend '60783'	
+	apt-get --yes install	kdeconnect || abend '91644'	
+	apt-get --yes install	choqok || abend '76746'
+	apt-get --yes install	krename || abend '23133'
+	apt-get --yes install	declarative-plasmoids || abend '93355'
+	apt-get --yes install	thunderbird-plasma || abend '93355'
+	apt-get --yes install	plasma-runners-addons || abend '91644'	
+	
+	#imagemagick graphicsmagick and helpers
+	apt-get --yes install	graphicsmagick  || abend '90785'
+	apt-get --yes install	dcraw || abend '09895' 
+	apt-get --yes install	html2ps || abend '38746' 	
+	
+	# gimp helpers
+	apt-get --yes install	gimp-plugin-registry || abend '09897'
+	apt-get --yes install	gimp-gmic || abend '09857'
+	apt-get --yes install	gimp-help-en || abend '09897'
+	apt-get --yes install	gimp-data-extras || abend '08786'
+	apt-get --yes install	gimp-lensfun || abend '98976'
+	apt-get --yes install	gimp-ufraw || abend '97867'
+	apt-get --yes install	pandora || abend '90897'
+	apt-get --yes install	gimp-beautify || abend '00956'
+
+	# libreoffice helpers
+	apt-get --yes install	libreoffice-style-oxygen || abend '06669'
+	apt-get --yes install	browser-plugin-libreoffice || abend '02359'
+	apt-get --yes install	myspell-en-gb || abend '43849' #not sure if for libreoffice or something else
+	apt-get --yes install	libreoffice-templates || abend '06669'
+	
+	# recoll and helpers
+	apt-get --yes install	recoll || abend '88843'
+	apt-get --yes install	antiword || abend '68556'
+	apt-get --yes install	python-chm || abend '17549'
+	apt-get --yes install	pstotext || abend '43888'
+	apt-get --yes install	unrtf || abend '48714'
+	apt-get --yes install	untex || abend '88871'
+	apt-get --yes install	djvulibre-bin || abend '12039'
+	apt-get --yes install	python-mutagen || abend '32936'
+	apt-get --yes install	libimage-exiftool-perl || abend '37453'	
+	# TODO check status of libvw-1.2-4 recommended for recoll
+	pip install 		epub || abend '80230'
+	pip install		rarfile || abend '13547'
+	pip install		icalendar || abend '21092'
+
+	# Security
+	apt-get --yes install	ufw || abend '99044'
+	apt-get --yes install	ufw-kde || abend '92425'
+	apt-get --yes install	apg || abend '34234' #advanced password generator
+
+	# fonts
+	apt-get --yes install	fonts-linuxlibertine || abend '90876'
+
+	apt-get-update
+}
+
+
+add_dev_packages()
+# Purpose: install stuff required for development, but not production, system
+# Args:    none
+# Returns: 0:success 1:fail
+{
+	apt-get --yes install sqlitebrowser || abend '44387'
+	#may need more kate packages
+	apt-get --yes install libghc-highlighting-kate-dev || abend '11962'
+	apt-get --yes install powertop || abend '68004'
+	apt-get --yes install nmap || abend '90607'
+	apt-get --yes install zenmap || abend '75671'
+	apt-get --yes install bootchart || abend '60034'
+	apt-get --yes install pybootchartgui || abend '71788'
+	apt-get --yes install vim || abend '55075'
+	apt-get --yes install vim-gui-common || abend '67816'
+	apt-get --yes install bashdb || abend '77232'
+	# devscripts to get checkbashisms bash portability checker
+	apt-get --yes install devscripts || abend '17984'
+	apt-get --yes install plasmate || abend '28716'
+	# debtree for visualizing deb dependencies
+	apt-get --yes install debtree		  || abend '61840'
+
+	#qt4-dev-tools for qdbusviewer
+	apt-get --yes install qt4-dev-tools		  || abend '66145'
+
+	# kdevelop
+	apt-get --yes install kdevelop || abend '47903'
+	apt-get --yes install kapptemplate || abend '44563'
+	apt-get --yes install git || abend '57566'
+
+	# cabal installer for haskell - need it for shellcheck
+	apt-get --yes install cabal-install || abend '42835'
+	apt-get update || abend '77586'
+	cabal update || abend '09718'
+	cabal install shellcheck || abend '18466'
+}
+
+add_remastersys()
+# Purpose: BlackLabImager installation
+# Returns: 0:success 1:fail
+{
+	# remastersys dependencies - need to check which i can remove
+	apt-get --yes install memtest86+ || abend '90094'
+	apt-get --yes install coreutils || abend '83110'
+	apt-get --yes install dialog || abend '56306'
+	apt-get --yes install mkisofs || abend '88343'
+	apt-get --yes install genisoimage || abend '33743'
+	apt-get --yes install findutils || abend '18318'
+	apt-get --yes install bash || abend '35035'
+	apt-get --yes install passwd || abend '21688'
+	apt-get --yes install sed || abend '46026'
+	apt-get --yes install squashfs-tools || abend '21503'
+	apt-get --yes install casper || abend '81958'
+	apt-get --yes install rsync || abend '92855'
+	apt-get --yes install mount  || abend '31306'
+	apt-get --yes install eject || abend '47778'
+	apt-get --yes install libdebian-installer4 || abend '35298'
+	apt-get --yes install os-prober || abend '67429'
+	apt-get --yes install ubiquity-frontend-debconf || abend '69311'
+	apt-get --yes install user-setup || abend '84076'
+	# discover1 not found in any repos - seems not to be missed!
+	#apt-get --yes install discover1 || abend '53246'
+	apt-get --yes install discover || abend '71826'
+	apt-get --yes install laptop-detect || abend '62483'
+	apt-get --yes install syslinux || abend '68970'
+	apt-get --yes install util-linux || abend '92496'
+	apt-get --yes install xresprobe || abend '96087'
+
+	cp -R "$BFILES"/remastersys/blacklabimager /etc || abend '05596'
+	cp -f "$BFILES"/remastersys/blacklabimager.conf	/etc  || abend '44296'
+	cp -f "$BFILES"/remastersys/BlackLabImager /usr/bin || abend '58240'
+	chmod u+x /usr/bin/BlackLabImager || abend '49897'
+
+	return 0
+}
+
+modify_file_creation_templates()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+	
+}
+
+modify_sevice_menus()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+ 	rm -f /usr/share/kde4/services/ServiceMenus/amarok*
+	cp -f /home/schdev/base-files/service-menus/* /usr/share/kde4/services/ServiceMenus || abend '03233'	
+}
+
+modify_solid_actions()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+	#rm -f /usr/share/kde4/apps/solid/actions/*
+	rm -f /usr/share/kde4/apps/solid/actions/gwenview*
+	rm -f /usr/share/kde4/apps/solid/actions/k3b_videodvd_rip.desktop # Because K3B currently crashes ripping DVDs
+	cp -f /home/schdev/base-files/solid-actions/* /usr/share/kde4/apps/solid/actions || abend '57054'	
+}
+
+modify_recoll()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+	cp -f /home/schdev/base-files/recoll/mimeconf	  /usr/share/recoll/examples  || abend '06642'
+	cp -f /home/schdev/base-files/recoll/mimemap	  /usr/share/recoll/examples || abend '22754'
+	cp -f /home/schdev/base-files/recoll/mimeview	  /usr/share/recoll/examples || abend '36348'
+	cp -f /home/schdev/base-files/recoll/recoll.conf  /usr/share/recoll/examples || abend '84415'
+	cp -f /home/schdev/base-files/recoll/recoll-oxy/* /usr/share/recoll/images || abend '42396'
+}
+
+modify_graphics()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+	# Wallpapers
+	cp -Rf /home/schdev/base-files/wallpapers/* /usr/share/wallpapers || abend '95948'
+
+	# User login icons
+	cp -Rf /home/schdev/base-files/login-icons/* /usr/share/kde4/apps/kdm/pics/users || abend '00562'
+
+	# Replace Netrunner fancy Konsole Background with plain black
+	cp -f /home/schdev/base-files/black-background.jpg /usr/share/netrunner/konsole.jpg || abend '04928'
+
+	# Use same black background for various purposes
+	cp -f /home/schdev/base-files/black-background.jpg /usr/share/schooner/black-background.jpg || abend '84673'
+}
+
+create_usr_share_schooner()
+# Purpose: 
+# Returns: 0:success 1:fail
+{
+	rm -rf /usr/share/schooner
+	cp -Rf /home/schdev/base-files/schooner-filetree /usr/share/schooner || abend '09425'
+}
+
+create_skel()
+# Purpose: create user skeleton on schooner system
+# Returns: 0:success 1:fail
+{
+	prompt_y_n "do you want to overwrite /etc/skel now?"
+	if [[ $? = 0 ]]; then
+		sudo rm -Rf /etc/skel
+		sudo cp -Rf $BFILES/current-skel /etc/skel
+		sudo chmod -R a+r /etc/skel
+	fi
+}
+
+# Need schooner directory first because error log will be written there
+create_usr_share_schooner
+
+apt-get update
+strip_netrunner
+add_ppas
+add_remastersys
+add_infrastructure
+add_misc_packages
+#add_dev_packages
+apt-get-update
+apt-get --yes autoremove
+apt-get --yes clean
+
+modify_graphics
+modify_file_creation_templates
+modify_sevice_menus
+modify_solid_actions
+modify_recoll
+sch-setup-firewall
+#create_skel
+
+
+
