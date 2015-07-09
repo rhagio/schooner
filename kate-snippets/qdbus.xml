@@ -1,0 +1,17 @@
+<snippets namespace="" license="BSD" filetypes="Bash" authors="" name="qdbus">
+ <script></script>
+ <item>
+  <displayprefix></displayprefix>
+  <match>lock-screen</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>qdbus org.freedesktop.ScreenSaver /ScreenSaver Lock</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>klipper-set-content</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>qdbus org.kde.klipper /klipper setClipboardContents 'some-content'</fillin>
+ </item>
+</snippets>

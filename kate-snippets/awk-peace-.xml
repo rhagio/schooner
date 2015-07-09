@@ -1,0 +1,220 @@
+<snippets namespace="" license="GPLv3" filetypes="*" snippetlicense="public domain" authors="Nowardev Peace-" name="awk-peace">
+ <item>
+  <displayprefix></displayprefix>
+  <match>double-space-a-file</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '1;{print ""}'
+</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-number-tab-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{print FNR "\t" $0}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>number-of-lines</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk 'END{print NR}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>number-of-line-contains</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '/testword/{n++}; END {print n+0}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-field-max-in line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '$1 > max {max=$1; maxline=$0}; END{ print max, maxline}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>number-field-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ print NF ":" $0 } '</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>last-field-each-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ print $NF }'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>last-field-last-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ field = $NF }; END{ print field }'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>last-field-line1</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ field = 1 }; END{ print field }'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-every-4-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk 'NF > 4'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-if-field1-is></match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '$1 > 4'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>first-field-last-row</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{x = $1} END {print x}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>delete-betweeb()</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> echo "ciao (hello)" |awk 'gsub( /\([^\)]*)/, "" )'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>delete-betweeb[]</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>echo "ciao [hello]" |awk 'gsub( /\[[^\)]*]/, "" )'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>center-to-79</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '{l=length();s=int((79-l)/2); printf "%"(s+l)"s\n",$0}' </fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>replace-first-istance</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{sub(/foo/,"bar")}; 1' </fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>replace-all-istance-first-line-only</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{gsub(/foo/,"bar")}; 1'   </fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>replace-if-contains-baz</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '/baz/{gsub(/foo/, "bar")}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>replace-if-dont-baz</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk  '!/baz/{gsub(/foo/, "bar")}; 1'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>replace-scarlet-or-ruby</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '{gsub(/scarlet|ruby/, "red")}; 1'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>field-separator:</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk -F ":" '{print $1  }'  </fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-and-sort</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk -F ":" '{print $1 | "sort" }'  /etc/passwd</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-length></match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk 'length > 64'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-first-10-lines</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk 'NR &lt; 11'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-from-regex-toend</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk '/regex/,EOF'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-from-line8to12</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk 'NR==8,NR==12'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-line52</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin> awk 'NR==52 {print;exit}'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>delete-duplicate</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '!($0 in a){a[$0];print}' </fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>put-in-line</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ printf "%s", $0 }'</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>print-less-first-field</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>awk '{ for(i=2; i&lt;=NF; i++) {printf("%s ", $i)}   print $NF } '</fillin>
+ </item>
+ <item>
+  <displayprefix></displayprefix>
+  <match>duplicate-field</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin>echo 1 2 3 4 5 |awk '{ for(i=1; i&lt;=NF; i++) {printf(" %s " ,$i ) ;printf(" %s" " on", $i);  }   print $NF } ' </fillin>
+ </item>
+</snippets>

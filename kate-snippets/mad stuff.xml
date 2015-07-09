@@ -1,0 +1,13 @@
+<snippets namespace="" license="BSD" filetypes="*" authors="Bill Cane" name="mad stuff">
+ <script></script>
+ <item>
+  <displayprefix></displayprefix>
+  <match>random-fact-generator</match>
+  <displaypostfix></displaypostfix>
+  <displayarguments></displayarguments>
+  <fillin># version 1
+wget randomfunfacts.com -O - 2>/dev/null | grep \&lt;strong\> | sed "s;^.*&lt;i>\(.*\)&lt;/i>.*$;\1;"
+# version 2 sends to osd (requires libnotify-send)
+wget randomfunfacts.com -O - 2>/dev/null | grep \&lt;strong\> | sed "s;^.*&lt;i>\(.*\)&lt;/i>.*$;\1;" | while read FUNFACT; do notify-send -t $((1000+300*`echo -n $FUNFACT | wc -w`)) -i gtk-dialog-info "RandomFunFact" "$FUNFACT"; done</fillin>
+ </item>
+</snippets>
