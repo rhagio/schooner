@@ -1,0 +1,43 @@
+#!/bin/dash
+# File:      sch-actions-metadata.sh
+# Created:   23/06/2015
+# Author:    
+# Email:     schoonerdemo@gmail.com
+# Copyright: © 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+. /usr/bin/sch-includes
+
+# Don't bother to check that file type can be processed, because
+# sch_actions_metadata.desktop has already excluded them.
+
+title="Clear Metadata"
+icon="edit-clear"
+filename="$1"
+warning="Metadata may contain information you want to keep.<br>For example, media players use metadata to organize music <br> files by artist and album. If you are uncertain about this option please choose Help"
+start_notify="Clearing $filename"
+finish_notify="$filename now cleared"
+
+dialog_continue_cancel "$title" "$warning" "$icon" "test"
+dialog_passive_popup "$title" "$start_notify" "$icon" 20 #allow for long operation 
+mat --force "$1"
+exiftool -all= "$1"
+dialog_passive_popup "$title" "$finish_notify" "$icon" 5 
+
+#"Delete all meta information from an image.  Note: You should NOT do
+# this to RAW images (except DNG) since proprietary RAW image formats
+# often contain information in the makernotes that is necessary for
+# converting the image."
+
+
