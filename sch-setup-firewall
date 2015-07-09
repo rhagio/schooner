@@ -1,0 +1,35 @@
+#!/bin/bash
+
+#Common Ports and Services (for reference)
+#FTP - 21 TCP
+#SSH - 22 TCP
+#TELNET - 23 TCP
+#SMTP - 25 TCP
+#DNS - 53 TCP/UDP
+#DHCP - 67 , 68 DHCP
+#HTTP - 80 TCP
+#POP3 - 110 TCP
+#IMAP - 143 TCP
+#HTTPS - 443 TCP
+#VNC - 5900-6000
+#IRC - 6667-7000
+#Gmail SMTP TLS: 587
+#Gmail SMTP SSL: 465
+#Gmail POP SSL: 995
+#Gmail IMAP SSL: 993
+
+ufw disable 
+ufw reset #clear prev settings
+ufw enable
+# default rules
+ufw default deny incoming && sudo ufw default deny outgoing
+# outbound tcp rule SMTP, DNS, HTTP, POP3, HTTPS
+ufw allow out 25,53,80,110,443/tcp
+#outbound udp rule DNS, DHCP, DHCP
+ufw allow out 53,67,68/udp
+# QTransmission rule
+ufw allow out 51413/tcp
+ufw allow out 51413/udp
+ufw allow out 6969/tcp
+# re-start firewall
+ufw disable && sudo ufw enable 

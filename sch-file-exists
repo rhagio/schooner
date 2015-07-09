@@ -1,0 +1,170 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-file-exists
+# Created:   05/10/2014
+# Purpose:   Determine if a file exists and has specified properties. If
+#            it doesn't have all the specified properties, report lacking
+#            ones on stdout
+# Author:    
+# Email:     schoonerdemo@gmail.comm
+# Copyright: ©
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-file-exists - Determine if a file exists and has specified properties.
+       If it doesn't have all the specified properties, report lacking ones
+       on stdout
+
+SYNOPSIS
+       sch-file-exists [OPTION]... [FILE]...
+
+DESCRIPTION
+       Where possible, options follow operators in dash 'test' builtin, the
+       exceptions being -e and -s
+
+       -s filespec
+	           ARG: filespec (absolute or relative path)
+       -r has read permissions
+       -w has write permissions (result not valid on readonly file system)
+       -x has execute permissions
+       -f is a regular file
+       -d is a directory
+       -h is a symbolic link
+       -e is not empty
+       -O is owned by effective UID of this process
+       -G is owned by effective GID of this process
+
+EXIT STATUS
+       0      File exists and has all the properties
+              specified by the options.
+
+       1      File does not exist or is missing one or
+              more properties specified by the options.
+
+       StdOut If exit status 1, lists the missing properties
+              in a space-separated string. For example:
+
+              'non-readable non-writable non-executable'
+
+              Possible elements in the output string are:-
+
+               either 'non-existent'
+               or 'bad-arguments-d-f-mutually-exclusive'
+               or 'bad-argument-s-missing-filespec'
+               or some of:
+              -r 'non-readable'
+              -w 'non-writable'
+              -x 'non-executable'
+              -f 'non-regular-file'
+              -d 'non-directory'
+              -h 'non-symbolic-link'
+              -e 'non-empty-file'
+              -O 'not-owned-by-this-UID'
+              -G 'not-owned-by-this-GID'
+
+EXAMPLES
+       Check that file exists and is regular, readable, writable:
+       sch-exists -s '/home/mary/her-doc.txt' -frw
+
+EOF
+}
+
+FileSpec=''; Output=''; Fail=1;
+Read=1; Write=1; Exe=1; File=1; Dir=1;
+Empty=1; Symb=1; OwnUID=1; OwnGID=1
+
+while getopts "s:rwxfhdeOG" Option
+do
+	case "$Option" in
+		s ) FileSpec="$OPTARG" ;;
+		r ) Read=0 ;;
+		w ) Write=0 ;;
+		x ) Exe=0 ;;
+		f ) File=0 ;;
+		d ) Dir=0 ;;
+		e ) Empty=0 ;;
+		h ) Symb=0 ;;
+		O ) OwnUID=0 ;;
+		G ) OwnGID=0 ;;
+		* ) usage; exit 1 ;;
+	esac
+done
+
+# validate args
+if [ "$Dir" = 0 ] && [ "$File" = 0 ]; then
+	echo "-f and -d options are mutually exclusive"
+	usage
+	Output='bad-arguments-d-f-mutually-exclusive'
+	echo "$Output";	exit 1
+fi
+
+if [ "$FileSpec" = '' ]; then
+	echo 'missing argument (filespec)'
+	Output='bad-argument-s-missing-filespec'
+	echo "$Output";	exit 1
+fi
+
+# check against specified characteristics
+[ -e "$FileSpec" ] || { Output="$Output non-existant"; echo "$Output"; exit 1; }
+
+if [ "$Read" = 0 ] && [ ! -r "$FileSpec" ]; then
+	Output="$Output non-readable"; Fail=0
+fi
+
+if [ "$Write" = 0 ] && [ ! -w "$FileSpec" ]; then
+	Output="$Output non-writable"; Fail=0
+fi
+
+if [ "$Exe" = 0 ] && [ ! -x "$FileSpec" ]; then
+	Output="$Output non-executable"; Fail=0
+fi
+
+if [ "$Dir" = 0 ] && [ ! -d "$FileSpec" ]; then
+	Output="$Output non-directory"; Fail=0
+fi
+
+if [ "$Symb" = 0 ] && [ ! -h "$FileSpec" ]; then
+	Output="$Output non-symbolic-link"; Fail=0
+fi
+
+if [ "$File" = 0 ] && [ ! -f "$FileSpec" ]; then
+	Output="$Output non-regular-file"; Fail=0
+fi
+
+if [ "$Empty" = 0 ] && [ ! -s "$FileSpec" ]; then
+	Output="$Output non-empty"; Fail=0
+fi
+
+if [ "$OwnUID" = 0 ] && [ ! -O "$FileSpec" ]; then
+	Output="$Output not-owned-by-this-UID"; Fail=0
+fi
+
+if [ "$OwnGID" = 0 ] && [ ! -G "$FileSpec" ]; then
+	Output="$Output not-owned-by-this-GID"; Fail=0
+fi
+
+if [ "$Fail" = 0 ]; then
+	echo "$Output"; exit 1
+else
+	exit 0
+fi

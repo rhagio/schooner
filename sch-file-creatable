@@ -1,0 +1,96 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-file-creatable
+# Created:   13/10/2014
+# Purpose:   Test if a regular file could be created in an existing parent
+#            directory. Do not create the file or overwrite an existing file
+#            If cannot be created, report why on stdout.
+# Author:    
+# Email:     schoonerdemo@gmail.comm
+# Copyright: ©
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-file-creatable - Test if a regular file could be created in an existing parent
+       directory. Do not create the file or overwrite an existing file. If cannot
+       be created, report why on stdout.
+
+SYNOPSIS
+       sch-file-creatable [FILESPEC]
+
+EXIT STATUS
+       0:      No file of that name currently exists but it can be created.
+       1:      A regular file of that name can't be created.
+       2:      A file of that name currently exists but it can be overwritten.
+
+       StdOut: If exit status 1: reason why file can't be created -one of:-
+                   'bad-argument-missing-filespec'
+                   'parent-dir-non-existent'
+                   'parent-is-not-a-dir'
+                   'parent-dir-is-non-readable'
+                   'parent-dir-is-non-writable'
+                   'file-exists-is-a-dir'
+                   'file-exists-is-non-readable'
+                   'file-not-creatable-reason-unknown'
+
+                If exit status 2: 'file-exists-is-writable'
+EOF
+}
+
+readonly FileSpec="$1"; Report=''; Fail=1
+
+# validate args
+[ "$FileSpec" != '' ] || { echo 'bad-argument-missing-filespec'; exit 1; }
+
+# parent must exist - note dirname returns '.' if filespec contains no path
+DirPath=$(dirname "$Filespec") # could contain spaces
+[ -e "$DirPath" ] || { Report='parent-dir-non-existent';  Fail=0; }
+[ -d "$DirPath" ] || { Report="$Report parent-is-not-a-dir"; Fail=0; }
+[ -r "$DirPath" ] || { Report="$Report parent-dir-non-readable"; Fail=0; }
+[ -w "$DirPath" ] || { Report="$Report parent-dir-non-writable"; Fail=0; }
+[ "$Fail" = 1 ] || { echo "$Report"; exit 1; }
+
+# does a file with the same name already exist?
+Report=''; Fail=1
+if [ -e "$FileSpec" ]; then
+	if [ -d "$FileSpec" ]; then
+		echo "file-exists-is-a-dir";  exit 1
+	fi
+	if [ -w "$FileSpec" ]; then
+		echo "file-exists-is-writable";  exit 2 # we could overwrite it
+	else
+		[ -r "$FileSpec" ] || { Report="file-exists-is-non-readable"; Fail=1; }
+		[ -w "$FileSpec" ] || { Report="$Report file-exists-is-non-writable"; Fail=1; }
+		[ "$Fail" = 0 ] || { echo "$Report"; exit 1; }
+	fi
+else # no, so we are clear to create one as a test
+	touch $FileSpec
+	if [ -e $Files ]; then
+		rm $FileSpec # clean up
+		exit 0
+	else
+		echo "file-not-creatable-reason-unknown"; exit 1
+	fi
+fi
+
+

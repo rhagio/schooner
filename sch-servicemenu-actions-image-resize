@@ -1,0 +1,34 @@
+#!/bin/dash
+# File:      sch-servicemenu-actions-image-resize
+# Created:   28/06/2015
+# Author:    
+# Email:     schoonerdemo@gmail.com
+# Copyright: © 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+. /usr/bin/sch-includes
+
+icon="transform-scale"
+infile=$(basename "$1")
+suffix="${infile##*.}"
+# we want the output file name to include new dimensions in pixels but that info is not available
+# until we have resized, so we create output file as a temp and later rename it
+tempfile=$(mktemp -t XXXXXXXXXX.$suffix)
+dialog_passive_popup "Actions For Images" "Resizing $infile" "$icon" 20
+gm convert "$1" -resize "$2" "$tempfile"
+outfile_dimensions=$(gm identify -format "%wx%h" "$tempfile")
+outfile="$infile.$outfile_dimensions.$suffix"
+mv "$tempfile" "$outfile"
+dialog_passive_popup "Actions For Images" "Resizing completed - created $outfile" "$icon" 5
+

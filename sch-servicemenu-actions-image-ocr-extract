@@ -1,0 +1,70 @@
+#!/bin/dash
+# File:      sch-servicemenu-actions-image-ocr-extract
+# Created:   28/06/2015
+# Author:    
+# Email:     schoonerdemo@gmail.com
+# Copyright: ©
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+. /usr/bin/sch-includes
+
+title="Actions For Images"
+icon="transform-scale"
+inputf=$(basename "$1")
+deskewedf=$(mktemp -t XXXXXXXXXX.gif)
+preprocf=$(mktemp -t XXXXXXXXXX.gif) 
+outputf=$(mktemp -t XXXXXXXXXX.txt) # process this file to avoid user seeing flicker...
+displayf="$inputf.txt" # then finally copy to this file
+
+dialog_passive_popup "Actions For Images" "Trying To Extract Text From $inputf" "$icon" 20
+
+# Deskew twice (found in test that some images need two deskews)
+# Use Imagemagick here (Graphicsmagick doesn't have deskew)
+convert  -deskew 40 -deskew 40 "$inputf" "$deskewedf"
+
+# Make image more tesseract-friendly:
+# remove border if possible, 
+# enlarge because..
+# convert to greyscale
+# cleanup noise
+gm convert -resize 300% -colorspace gray -sharpen 0x1 "$deskewedf" "$preprocf" 
+cp "$deskewedf" prepro.gif
+# Extract text
+tesseract "$preprocf" "$outputf"
+cp "$outputf" testme.txt
+# Remove newlines from start and end of output file
+#sed '/./,$!d' "$outputf" # strip leading newlines
+echo "$(echo "$(tac "$outputf")" | tac)" #strip trailing newlines
+
+if [ -s "$outputf" ]; then
+      mv "$outputf" "$displayf";
+      dialog_passive_popup "$title" "Text extracted to $displayf" "$icon" 5;
+else
+      rm "$outputf";
+      dialog_passive_popup "$title" "Failed to extract text from $inputf" "$icon" 5;
+fi
+
+# Clean up
+rm "$deskewedf" "$preprocf"
+
+ #Three points to improve the readability of the image: 
+#1)Resize the image with variable height and width(multiply 0.5 and 1 and 2 with image height and width). 
+#2)Convert the image to Gray scale format(Black and white). 
+#3)Remove the noise pixels and make more clear(Filter the image).
+
+
+#convert \( $infile -colorspace gray -type grayscale -contrast-stretch 0 \) \
+#\( -clone 0 -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% -contrast-stretch 0 \) \
+#-compose copy_opacity -composite -fill "$bgcolor" -opaque none +matte \
+#-deskew 40% -sharpen 0x1 \ $outfile 

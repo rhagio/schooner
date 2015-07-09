@@ -1,0 +1,44 @@
+#!/bin/dash
+# File:      sch-servicemenu-actions-image-resize
+# Created:   28/06/2015
+# Author:    
+# Email:     schoonerdemo@gmail.com
+# Copyright: © 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+. /usr/bin/sch-includes
+
+icon="transform-scale"
+inputf=$(basename "$1")
+
+# Determine image format
+id_string=$(identify "$1")
+echo "$id_string" > debug
+[ $? -gt 0 ] || dialog_msgbox "Image Actions" "File $inputf is damaged: this resize may fail"
+
+#case expression in
+#    pattern1 )
+ #       statements ;;
+ #   pattern2 )
+  #      statements ;;
+ #   ...
+#esac
+
+dialog_passive_popup "Actions For Images" "Optimizing $1" "$icon" 20
+pngnq -e "png.optimized.lossy.png" $1
+dialog_passive_popup "Actions For Images" "Optimize completed - created $1" "$icon" 5
+
+
+
+
