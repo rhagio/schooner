@@ -1,0 +1,188 @@
+#!/bin/bash
+
+# Create a skeleton from current user home directory. 
+# Give option to overwrite /etc/skel with it
+
+username=$(whoami)
+userpath="/home/$username/"
+placeholder="==z0x1c2d3=placeholder=f4s5x6c7x=="
+
+echo -e "Did you use Bleachbit to clean up and then reboot? (y = Continue)" ; read userconfirm
+if [ "$userconfirm" != "y" ]; then
+	echo "Aborting. Run ccom-full-bleachbit-cleanup.sh then reboot and begin again"; exit 1
+fi 
+
+# Review potentially unwanted files in /home/user.
+
+echo -e "Did you delete any unwanted files in $userpath? (y = Continue)"; read userconfirm
+if [ "$userconfirm" != "y" ]; then
+	echo "Aborting. Delete unwanted files and begin again"; exit 1
+fi 
+
+# Check for some running applications so user can stop them.
+echo "Please close running applications then press return to continue";  read pausetoclose
+
+
+# Copy user home to pickle, omitting stuff we don't want
+now=$(date +"%Y-%m-%d-%H-%M")
+skeleton="user1-skel-$now"
+
+rsync -avz \
+--exclude 'Pictures/' \
+--exclude 'Videos/' \
+--exclude 'Music/' \
+--exclude 'E-Books/' \
+--exclude 'Audiobooks/' \
+--exclude 'Documents/' \
+--exclude 'Camera Downloads/' \
+--exclude 'Downloads/' \
+--exclude 'Network/' \
+--exclude 'Podcasts/' \
+--exclude 'Web Archives/' \
+--exclude 'Drop*' \
+--exclude 'Virtual Machines/' \
+--exclude 'user1-skel*' \
+--exclude '.local/share/akona*' \
+--exclude '.config/insync' \
+--exclude '.kde/share/config/insync.pyrc' \
+--exclude '.bitcoin/' \
+--exclude '.armory/' \
+--exclude '.config/banshee-1/log' \
+--exclude '.local/share/contacts/' \
+--exclude '.local/share/gvfs-metadata/' \
+--exclude '.local/share/keyrings/' \
+--exclude '.local/share/notes/' \
+--exclude '.local/share/telepathy/' \
+--exclude '.local/share/Trash/' \
+--exclude '.local/share/recently-used.xbel' \
+--exclude '.kde/share/apps/nepomuk/' \
+--exclude '.local/share/baloo/' \
+--exclude '.recollweb/*' \
+--exclude '.recoll/xapiandb/*' \
+--exclude '.recoll/webcache/*' \
+--exclude '.recoll/history' \
+--exclude '.recoll/missing' \
+--exclude '.recoll/ptrans' \
+--exclude '.recoll/aspdict.en.rws' \
+--exclude '.recoll/idxstatus.txt' \
+--exclude '.recoll/index.pid' \
+--exclude '.cache' \
+--exclude '.recoll/index.pid' \
+--exclude '.kde/share/apps/kfileplaces/bookmarks.*' \
+--exclude '.kde/share/apps/gwenview/recentfolder/*' \
+--exclude '.kde/share/apps/gwenview/recenturls/*' \
+--exclude '.bluefish/autosave/' \
+--exclude '.VirtualBox/*.log*' \
+--exclude '.cache/*' \
+--exclude '.cddb/*' \
+--exclude '.clamtk/db/*' \
+--exclude '.clamtk/history/*' \
+--exclude '.clamtk/viruses/*' \
+--exclude '.googleearth/' \
+--exclude '.kde/share/config/email*' \
+--exclude '.config/vokoscreen/vokoscreen.log' \
+--exclude '.dropbox*' \
+--exclude '.dbus' \
+--exclude '.kde/share/apps/kate/metainfos' \
+--exclude '.kde/share/apps/kate/sessions/*' \
+--exclude '.kde/share/apps/okular/docdata/'  \
+--exclude '.kde/share/apps/kconf_update/log/update.log' \
+--exclude '.kde/share/apps/kcookiejar/*' \
+--exclude '.kde/cache*' \
+--exclude '.kde/socket*' \
+--exclude '.kde/tmp*' \
+--exclude '.kde/Autostart/' \
+--exclude '.kde/Env/' \
+--exclude '.kde/shutdown/' \
+--exclude '.mozilla/firefox/urmsktfc.default/extensions.sqlite' \
+--exclude '.mozilla/firefox/urmsktfc.default/weave/logs/*' \
+--exclude '.mozilla/firefox/urmsktfc.default/*.log' \
+--exclude '.mozilla/firefox/urmsktfc.default/*.bak' \
+--exclude '.macromedia' \
+--exclude '.thumbnails/*' \
+--exclude '.wine-browser/' \
+--exclude '.xsession-errors*' \
+--exclude '.Xauthority' \
+--exclude '.local/share/marble/' \
+--exclude '.face.icon' \
+/home/$username/ $skeleton
+
+# Omitted some folders from rsync to lose user data. Now copy them back 
+# mainly so as not to lose .directory files which specify folder icons
+# TODO will eventually copy in sample data here
+
+cp -R /home/attic/schooner/base-files/home-folder-tree/* $skeleton
+
+# Replace absolute user path (/home/user) with placeholder
+grep -rl "\/home\/$username" $skeleton | xargs sed -i "s/\/home\/$username/$placeholder/g"
+
+# Clear the kicker plasmoid's fav applications list by replacing config file
+#kickerconfig="$skeleton/.kde/share/config/homerunkickerrc"
+#echo $kickerconfig
+#echo "[Tab0][Source0]" > $kickerconfig
+#echo "RecentApps=" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source3]" >> $kickerconfig
+#echo "Favorites=shutdown,suspend" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source5][PlasmaRunnerManager]">> $kickerconfig
+#echo "LaunchCounts=" >> $kickerconfig
+
+# Get latest version of sch-user-pre-kde-startup-tasks.sh into skel
+rm $skeleton/.kde/env/sch-user-pre-kde-startup-tasks.sh
+cp /bin/sch-user-pre-kde-startup-tasks.sh   $skeleton/.kde/env/
+
+# Setup Schooner user config directory and files
+if [ -d "$skeleton/.schooner" ]
+then
+	rm -R $skeleton/.schooner
+fi
+
+mkdir $skeleton/.schooner
+SchConfigFile=$skeleton/.schooner/sch-user-config
+echo 'FirstUserRun=True' > $SchConfigFile
+echo 'StopDropboxStartupNag=True' >> $SchConfigFile
+
+# Start user off with faceless icon
+cp /home/attic/nr-to-sch/per-system-files/graphics/user-icons/Faceless.png $skeleton/.face.icon
+
+# TODO clean up config files left behind by dev tools
+
+# Insync
+
+# Remove the [Desktop Action action0] - [Desktop Action action<n>] entries 
+# from insync add to service menu files, to strip user-specific data.
+# This is a crude hack and it will fail if Insync adds  more lines to the 
+# initial [Desktop Entry] section.
+CONFIGFILE="$HOME/.kde/share/kde4/services/ServiceMenus/insync_addtoservicemenu1.desktop"
+TEMPFILE=$HOME/.schooner/tmp/sch-strip-insync-config-tmp-$RANDOM
+head -n 9  $CONFIGFILE > $TEMPFILE
+sleep 1 # make dead sure no race condition
+mv $TEMPFILE $CONFIGFILE
+
+# "Current" pickled skel is the one that will be picked up by sch-convert-netrunner.
+sudo rm -R /home/attic/schooner/current-skel
+cp -R $skeleton /home/attic/schooner/current-skel
+chmod -R a+rw /home/attic/schooner/current-skel
+
+# Keep as a backup
+mv $skeleton /home/attic/schooner/skels/
+chmod -R a+rw /home/attic/schooner/skels/$skeleton
+
+# Overwrite /etc/skel with a pickled skeleton.
+echo -e "Do you want to overwrite /etc/skel with new skeleton now (y = yes)" 
+read userconfirm
+
+if [ "$userconfirm" = "y" ] 
+then
+	sudo rm -R /etc/skel
+	sudo cp -R /home/attic/nr-to-sch/skels/$skeleton /etc/skel
+	sudo chmod -R a+r /etc/skel
+	echo "sch-overwrite-etc-skel-with-pickle has overwritten /etc/skel"
+	exit 0
+else
+	echo "sch-overwrite-etc-skel-with-pickle aborting. /etc/skel was not overwritten by $1"
+	exit 1
+fi
+
+

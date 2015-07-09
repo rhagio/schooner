@@ -1,0 +1,242 @@
+# helpers =====================================================================
+readonly HostName="$(hostname)" 
+readonly Script="$(basename $0)" 
+readonly User="$(whoami)"
+readonly Now="$(date +"%Y-%m-%d-%H-%M")"
+readonly Success=0 Fail=1 Abort=9 Yes=0 No=1
+readonly GlobalConf='/usr/share/schooner/global-conf'
+readonly UserConf="$HOME/.schooner/user-conf"
+readonly ErrLog="$HOME/.schooner/error-log"
+
+prompt_y_n()
+# Purpose: allow user to select yes/no response to message printed to terminal
+# Args:    $1:message
+# Returns: 0:yes 1:no
+{
+	local Answer; Answer=""
+	while [ "$Answer" != "y" ] && [ "$Answer" != "n" ]; do
+		echo "$1: type y or n:"
+		read $Answer
+	done 
+	if [ "$Answer" = "y" ]; then
+		exit 0
+	else
+		exit 1
+	fi
+}
+
+log_error()
+# Purpose: write entry to error log
+# Args:    $1:LINENO $2:Message
+# Returns: 0:success 1:fail
+{
+	local Log; Log="$ErrLog"
+	[ -f "$Log" ] || echo > "$Log"
+	[ -f "$Log" ] || { echo "Error log $Log does not exist"; exit $Abort; }
+	[ -w "$Log" ] || { echo "Error log $Log is not writable"; exit $Abort; }
+	echo "$(date "+%m/%d/%y-%H:%M:%S"): $Script: line $1: $2" >> "$Log"
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:LINENO $2:error-message ($2 is optional)
+# Returns: never returns - always exits with $Abort
+{
+	local LineNo; LineNo=$1
+	local Message; Message=$2
+	[ "$Message" != "" ] || Message="Command failed"
+	log_error "$LineNo" "Aborted: $Message"
+	echo "$Script aborted at line $LineNo: $Message"
+	exit $Abort
+}
+
+ini_sect_exists()
+# Purpose: determine if specifies [section header] exists in ini file
+# Args:    $1:filename $2:section
+# Returns: 0:success 1:fail
+{
+	local FName; local Sect; FName=$1; $Sect=$2
+	
+	( [ "$Sect" = "" ] || [ "$Param" = "" ] ) || \
+		abend $LINENO "Missing arg: filename ($FName) or sect ($Sect)"
+	( [ -f "$FName" ] && [ -r "$FName" ] ) || \
+		abend $LINENO "file ($FName) not found or not readable"
+	
+	return (grep -q "\[$Sect\]" "$FName")	
+}
+
+ini_get_value()
+# Purpose: get value matching parameter from ini file
+# Args:    $1:filename $2:section $3:param
+# Returns: 0:success 1:fail
+# Stdout:  if success, the returned value, else ""
+{
+	local File; local Sect; local Param
+	File=$1; Sect=$2; Param=$3
+		
+	if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$File" = "" ]; then
+		abend $LINENO "Missing arg: sect [$Sect], param ($Param) or file ($IniFile)" 
+	elif [ ! -f "$File" ] || [ ! -r "$File" ]; then
+		abend $LINENO "File ($File) not found or not readable" 
+	else
+		sch-crudini --get "$File" "$Sect" "$Param";	return $?
+	fi
+}
+
+ini_set_value()
+# Purpose: set value for specified param in ini file
+# Args:    $1:file $2:section $3:param $4:value
+# Returns: 0:success 1:fail
+# Notes:   add new section and param as necessary
+{
+	local File; local Sect; local Param; local Value
+	File=$1; Sect=$2; Param=$3; Value=$4
+	
+	if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$File" = "" ]; then
+		abend $LINENO "Missing arg: sect [$Sect], param ($Param) or	file ($IniFile)" 
+	elif [ ! -f "$File" ] || [ ! -r "$File" ]; then
+		abend $LINENO "File ($File) not found or not readable"
+	fi
+	
+	sch-crudini --set "$IniFile" "$Sect" "$Param" "$Value"
+	if [ $? ]; then
+		exit $Success
+	else
+		abend $LINENO "unable to set [$Sect], param ($Param) or \
+			value ($Value) in file ($IniFile)"
+	fi
+}
+
+ini_rm_sect()
+# Purpose: remove complete section from ini file
+# Args:    $1:file $2:section
+# Returns: 0:success 1:fail
+{
+	if [ "$Param" != "" ] || [ "$Value" != "" ]; then
+		abend "redundant args ($Param) ($Value)" $LINENO
+	elif [ "$Sect" = "" ]; then
+		abend "missing arg for section ($Sect)" $LINENO
+	elif [ $GotIniFile = 1 ]; then
+		abend "ini file ($IniFile) does not exist" $LINENO
+	else
+		sch-crudini --del "$IniFile" "$Sect"
+		if [ $? ]; then
+			exit $Success
+		else
+			abend "unable to delete [$Sect] from $IniFile" $LINENO
+		fi
+	fi;;		
+}
+
+process_is_running()
+# Purpose: report whether or not specified process is running
+# Args:    $1:process-name
+# Returns: 0:yes 1:no
+{ return pidof $1; }
+
+get_global_conf()
+# Purpose: get value from param=value pair in schooner global config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{ sch-ini -a get-value -f $GlobalConf -s 'general' -p $1; return $?; }
+
+get_user_conf()
+# Purpose: get value from param=value pair in schooner user config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{ sch-ini -a get-value -f $UserConf -s 'general' -p $1; return $?; }
+
+set_user_conf()
+# Purpose: set value in param=value pair in schooner user config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+{ sch-ini -a set-value -f $UserConf -s 'general' -p $1  -v $2; return $%; }
+
+abend_if_root()
+# Purpose: abort script if run by root
+# Args:    $1:LINENO 
+# Returns: never returns - abend always exits with $Abort
+{ [ "$User" != "root" ] || abend $1 "$Script must not be run as root"; }
+
+abend_if_not_root()
+# Purpose: abort script if not run by root
+# Args:    $1:LINENO 
+# Returns: never returns _ abend always exits with $Abort
+{ [ "$User" = "root" ] || abend $1 "$Script must be run as root"; }
+
+set_global_conf()
+# Purpose: set value in param=value pair in schooner global config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+# Note:    this function has to be placed after abend
+{
+	abend-if-not-root
+	sch-ini -a set-value -f $GlobalConf -s 'general' -p $1  -v $2; return $%
+}
+
+abend_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1:LINENO $2:process-name 
+# Returns: never returns - abend always exits with $Abort
+{
+	process_is_running $2
+	if [ $? = 0 ]; then
+		return 0
+	else
+		abend $2 "aborting because process $1 is running"
+	fi
+}
+
+system_is_online()
+# Purpose: test whether system is online or not
+# Args:    none
+# Returns: 0:online 1:offline
+{
+	local TmpFile
+	local WebPage
+	TmpFile=$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)
+	WebPage=$(read_sch_conf 'general' 'test-web-page')
+	/usr/bin/wget -q --tries=10 --timeout=20 "$WebPage" -O $TmpFile &> /dev/null 
+	
+	if [ -s "$TmpFile" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+prompt_if_offline()
+# Purpose: if system is offline prompt user to take some action
+# Args:    $1:message
+# Returns: 0:online 1:offline
+{
+	system_is_online
+	if [ $? = 1 ]; then
+		prompt_y_n "system is off line. abort now? "
+		if [ $? = 1 ]; then
+			abort "system is offline and you chose to abort at prompt" $LINENO
+		else
+			system_is_online
+			if [ $? = 1 ]; then
+				abort "system is offline and you chose to abort at prompt" $LINENO
+			else
+				return 0
+			fi
+		fi
+	else
+		return 0
+	fi
+}
+
+convert_seconds_to_date()
+# Purpose: convert seconds since epoch into date
+# Args:    $1:seconds
+# Returns: 0:success 1:fail
+# Stdout:  date
+{ echo $(date --date "@$1"); }
+
+
+# eof helpers ==================================================================

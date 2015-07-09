@@ -1,0 +1,395 @@
+#! /bin/bash
+#****** included for snippets - won't work properly without custom col command
+#  ConvertDate -- convert a human-readable date to a MM/DD/YY date
+#
+#  Date ::= Month/Day/Year
+#        |  Month/Day
+#        |  DayOfWeek
+#        |  [this|next] DayOfWeek
+#        |  DayofWeek [of|in] [Number|next] weeks[s]
+#        |  Number [day|week][s] from Date
+#        |  the last day of the month
+#        |  the last day of Month
+#
+#  Month ::= January | February | March | April | May | ...  | December
+#  January  ::= jan | january | 1
+#  February  ::= feb | january | 2
+#  ...
+#  December ::=  dec | december | 12
+#  Day   ::= 1 | 2 | ... | 31
+#  DayOfWeek ::= today | Sunday | Monday | Tuesday | ...  | Saturday
+#  Sunday    ::= sun*
+#  ...
+#  Saturday  ::= sat*
+#
+#  Number ::= Day | a
+#
+#  Author: Larry Morell
+exit
+if [ $# = 0 ]; then
+   printdirections $0
+   exit
+fi
+
+
+
+# Request the value of a variable
+GetVar () {
+   Var=$1
+   echo -n "$Var= [${!Var}]: "
+   local X
+   read X
+   if [ ! -z $X ]; then
+      eval $Var="$X"
+   fi
+}
+
+IsLeapYear () {
+   local Year=$1
+   if [ $[20$Year % 4]  -eq  0 ]; then
+      echo yes
+   else
+      echo no
+   fi
+}
+
+# AddToDate -- compute another date within the same year 
+
+DayNames=(mon tue wed thu fri sat sun )  # To correspond with 'date' output
+
+Day2Int () {
+   ErrorFlag=
+   case $1 in
+      -e )
+         ErrorFlag=-e; shift
+         ;;
+   esac
+   local dow=$1
+   n=0
+   while  [ $n -lt 7 -a $dow != "${DayNames[n]}" ]; do
+      let n++
+   done
+   if [ -z "$ErrorFlag" -a $n -eq 7 ]; then
+      echo Cannot convert $dow to a numeric day of wee
+      exit
+   fi
+   echo $[n+1]
+
+}
+
+Months=(31 28 31 30 31 30 31 31 30 31 30 31)
+MonthNames=(jan feb mar apr may jun jul aug sep oct nov dec)
+# Returns the month (1-12) from a date, or a month name
+Month2Int () {
+   ErrorFlag=
+   case $1 in
+      -e )
+         ErrorFlag=-e; shift
+         ;;
+   esac
+   M=$1
+   Month=${M%%/*}  # Remove /...
+   case $Month in
+      [a-z]* )
+         Month=${Month:0:3}
+         M=0
+         while [ $M -lt 12 -a ${MonthNames[M]} != $Month ]; do
+            let M++
+         done
+         let M++
+   esac
+   if [  -z "$ErrorFlag" -a $M -gt 12 ]; then
+      echo "'$Month' Is not a valid month."
+      exit
+   fi
+   echo $M
+}
+
+# Retrieve month,day,year from a legal date
+GetMonth() {
+   echo ${1%%/*}
+}
+
+GetDay() {
+   echo $1 | col / 2
+}
+
+GetYear() {
+   echo ${1##*/}
+}
+
+
+AddToDate() {
+
+   local Date=$1
+   local days=$2
+   local Month=`GetMonth $Date`
+   local Day=`echo $Date | col / 2`   # Day of Date
+   local Year=`echo $Date | col / 3`  # Year of Date
+   local LeapYear=`IsLeapYear $Year`
+
+   if [ $LeapYear = "yes" ]; then
+      let Months[1]++
+   fi
+   Day=$[Day+days]
+   while [ $Day -gt ${Months[$Month-1]} ]; do
+       Day=$[Day -  ${Months[$Month-1]}]
+       let Month++
+   done
+   echo "$Month/$Day/$Year"
+}
+
+# Convert a date to normal form
+NormalizeDate () {
+   Date=`echo "$*" | sed 'sX  *X/Xg'`
+   local Day=`date +%d`
+   local Month=`date +%m`
+   local Year=`date +%Y`
+   #echo Normalizing Date=$Date > /dev/tty
+   case $Date in
+      */*/* )
+         Month=`echo $Date | col / 1 `
+         Month=`Month2Int $Month`
+         Day=`echo $Date | col / 2`
+         Year=`echo $Date | col / 3`
+         ;;
+      */* )
+         Month=`echo $Date | col / 1 `
+         Month=`Month2Int $Month`
+         Day=1
+         Year=`echo $Date | col / 2 `
+         ;;
+      [a-z]* ) # Better be a month or day of week
+         Exp=${Date:0:3}
+         case $Exp in
+            jan|feb|mar|apr|may|june|jul|aug|sep|oct|nov|dec )
+               Month=$Exp
+               Month=`Month2Int $Month`
+               Day=1
+               #Year stays the same
+               ;;
+            mon|tue|wed|thu|fri|sat|sun )
+               # Compute the next such day
+               local DayOfWeek=`date +%u`
+               D=`Day2Int $Exp`
+               if [ $DayOfWeek -le $D ]; then
+                  Date=`AddToDate $Month/$Day/$Year $[D-DayOfWeek]`
+               else
+                  Date=`AddToDate $Month/$Day/$Year $[7+D-DayOfWeek]`
+               fi
+
+               # Reset Month/Day/Year
+               Month=`echo $Date | col / 1 `
+               Day=`echo $Date | col / 2`
+               Year=`echo $Date | col / 3`
+               ;;
+            * ) echo "$Exp is not a valid month or day"
+                exit
+               ;;
+            esac
+         ;;
+      * ) echo "$Date is not a valid date"
+          exit
+         ;;
+   esac
+   case $Day in
+      [0-9]* );;  # Day must be numeric
+      * ) echo "$Date is not a valid date"
+          exit
+         ;;
+   esac
+      [0-9][0-9][0-9][0-9] );;  # Year must be 4 digits
+      [0-9][0-9] )
+          Year=20$Year
+      ;;
+   esac
+   Date=$Month/$Day/$Year
+   echo $Date
+}
+# NormalizeDate jan
+# NormalizeDate january
+# NormalizeDate jan 2009
+# NormalizeDate jan 22 1983
+# NormalizeDate 1/22
+# NormalizeDate 1 22
+# NormalizeDate sat
+# NormalizeDate sun
+# NormalizeDate mon
+
+ComputeExtension () {
+
+   local Date=$1; shift
+   local Month=`GetMonth $Date`
+   local Day=`echo $Date | col / 2`
+   local Year=`echo $Date | col / 3`
+   local ExtensionExp="$*"
+   case $ExtensionExp in
+      *w*d* )  # like 5 weeks 3 days or even 5w2d
+            ExtensionExp=`echo $ExtensionExp | sed 's/[a-z]/ /g'`
+            weeks=`echo $ExtensionExp | col  1`
+            days=`echo $ExtensionExp | col 2`
+            days=$[7*weeks+days]
+            Due=`AddToDate $Month/$Day/$Year $days`
+      ;;
+      *d )    # Like 5 days or 5d
+            ExtensionExp=`echo $ExtensionExp | sed 's/[a-z]/ /g'`
+            days=$ExtensionExp
+            Due=`AddToDate $Month/$Day/$Year $days`
+      ;;
+      * )
+            Due=$ExtensionExp
+      ;;
+   esac
+   echo $Due
+
+}
+
+
+# Pop -- remove the first element from an array and shift left
+Pop () {
+   Var=$1
+   eval "unset $Var[0]"
+   eval "$Var=(\${$Var[*]})"
+}
+
+ComputeDate () {
+   local Date=`NormalizeDate $1`; shift
+   local Expression=`echo $* | sed 's/^ *a /1 /;s/,/ /' | tr A-Z a-z `
+   local Exp=(`echo $Expression `)
+   local Token=$Exp  # first one
+   local Ans=
+   #echo "Computing date for ${Exp[*]}" > /dev/tty
+   case $Token in
+      */* ) # Regular date
+         M=`GetMonth $Token`
+         D=`GetDay $Token`
+         Y=`GetYear $Token`
+         if [ -z "$Y" ]; then
+            Y=$Year
+         elif [ ${#Y} -eq 2 ]; then
+            Y=20$Y
+         fi
+         Ans="$M/$D/$Y"
+         ;;
+      yes* )
+         Ans=`AddToDate $Date -1`
+         ;;
+      tod*|now )
+         Ans=$Date
+         ;;
+      tom* )
+         Ans=`AddToDate $Date 1`
+         ;;
+      the )
+         case $Expression in
+            *day*after* )  #the day after Date
+               Pop Exp;   # Skip the
+               Pop Exp;   # Skip day
+               Pop Exp;   # Skip after
+               #echo Calling ComputeDate $Date ${Exp[*]} > /dev/tty
+               Date=`ComputeDate $Date ${Exp[*]}` #Recursive call
+               #echo "New date is " $Date > /dev/tty
+               Ans=`AddToDate $Date 1`
+               ;;
+            *last*day*of*th*month|*end*of*th*month )
+               M=`date +%m`
+               Day=${Months[M-1]}
+               if [ $M -eq 2 -a `IsLeapYear $Year` = yes ]; then
+                  let Day++
+               fi
+               Ans=$Month/$Day/$Year
+               ;;
+            *last*day*of* )
+               D=${Expression##*of }
+               D=`NormalizeDate $D`
+               M=`GetMonth $D`
+               Y=`GetYear $D`
+               # echo M is $M > /dev/tty
+               Day=${Months[M-1]}
+               if [ $M -eq 2 -a `IsLeapYear $Y` = yes ]; then
+                  let Day++
+               fi
+               Ans=$[M]/$Day/$Y
+               ;;
+            * )
+               echo "Unknown expression: " $Expression
+               exit
+               ;;
+         esac
+         ;;
+      next* ) # next DayOfWeek
+         Pop Exp
+         dow=`Day2Int $DayOfWeek` # First 3 chars
+         tdow=`Day2Int ${Exp:0:3}` # First 3 chars
+         n=$[7-dow+tdow]
+         Ans=`AddToDate $Date $n`
+         ;;
+      this* )
+         Pop Exp
+         dow=`Day2Int $DayOfWeek`
+         tdow=`Day2Int ${Exp:0:3}` # First 3 chars
+         if [ $dow -gt $tdow ]; then
+            echo "'this $Exp' has passed.  Did you mean 'next $Exp?'"
+            exit
+         fi
+         n=$[tdow-dow]
+         Ans=`AddToDate $Date $n`
+         ;;
+      [a-z]* ) # DayOfWeek ...
+
+         M=${Exp:0:3}
+         case $M in
+            jan|feb|mar|apr|may|june|jul|aug|sep|oct|nov|dec )
+               ND=`NormalizeDate ${Exp[*]}`
+               Ans=$ND
+               ;;
+            mon|tue|wed|thu|fri|sat|sun )
+               dow=`Day2Int $DayOfWeek`
+               Ans=`NormalizeDate $Exp`
+
+               if [ ${#Exp[*]} -gt 1 ]; then # Just a DayOfWeek
+                  #tdow=`GetDay $Exp` # First 3 chars
+                  #if [ $dow -gt $tdow ]; then
+                     #echo "'this $Exp' has passed.  Did you mean 'next $Exp'?"
+                     #exit
+                  #fi
+                  #n=$[tdow-dow]
+               #else  # DayOfWeek in a future week
+                  Pop Exp  # toss monday
+                  Pop Exp  # toss in/off
+                  if [ $Exp = next ]; then
+                     Exp=2
+                  fi
+                  n=$[7*(Exp-1)]   # number of weeks
+                  n=$[n+7-dow+tdow]
+                  Ans=`AddToDate $Date $n`
+               fi
+               ;;
+         esac
+         ;;
+      [0-9]* ) # Number  weeks [from|after] Date
+         n=$Exp
+         Pop Exp;
+         case $Exp in
+            w* ) let n=7*n;;
+         esac
+
+         Pop Exp; Pop Exp
+         #echo Calling ComputeDate $Date ${Exp[*]} > /dev/tty
+         Date=`ComputeDate $Date ${Exp[*]}` #Recursive call
+         #echo "New date is " $Date > /dev/tty
+         Ans=`AddToDate $Date $n`
+         ;;
+   esac
+   echo $Ans
+}
+
+Year=`date +%Y`
+Month=`date +%m`
+Day=`date +%d`
+DayOfWeek=`date +%a |tr A-Z a-z`
+
+Date="$Month/$Day/$Year"
+ComputeDate $Date $*
+
+ 

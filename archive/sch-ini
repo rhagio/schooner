@@ -1,0 +1,188 @@
+#!/bin/dash 
+
+Action=
+IniFile=
+BaseName=
+Sect=
+Param=
+Value=
+GotIniFile=1
+GotSect=1
+GotParam=1
+readonly Success=0 Fail=1 Abort=9 Yes=0 No=1
+
+usage()
+{
+cat << EOF
+Script: sch-ini: schooner ini file handling
+
+ARGS:
+     -a    (action) 
+           get-value (file, section, param) return value on stdout
+           set-value (file, section, param)	
+           rm-sect (section)
+           file-exists (filepath)  return 0 if found else 1	
+           sect-exists (file, section)
+           param-exists (file, section, param)
+           entry-exists (file, section, param, value) return 0 if
+                        entry specified exists, else 1
+           list-sects (section) list all section headers on stdout
+	           
+     -f    (filename)
+     -s    (section)
+     -p    (param)
+     -v    (value)
+     
+RETURNS:
+      0    success/found
+      1    fail
+      3    abort
+      
+EXAMPLES:
+      sch-crudini -a get-value -f myfile -s mysection -p myparam
+      sch-crudini -a get-value -f myfile -s mysection -p myparam      
+	
+EOF
+}
+
+abend() # $1:abort-message $2:$LINENO return:always exits
+{
+	echo "$Script: aborted at line: $2: $1"; exit $Abort
+}
+
+while getopts "a:s:p:v:f:" OPTION
+do
+     case $OPTION in
+       a) Action=$OPTARG;;
+	   s) Sect=$OPTARG;;
+	   p) Param=$OPTARG;;
+	   v) Value=$OPTARG;;
+	   f) IniFile=$OPTARG;;
+	   *) abend "invalid option ($OPTION)" $LINENO;;
+	esac
+done
+
+if [ "$Action" = "" ] && [ "$Sect" = "" ] && [ "$Param" = "" ] \
+	&& [ "$Value" = "" ] && [ "$IniFile" = "" ]; then
+	usage; exit $Fail
+fi
+
+# Just warn because could write user ini file with root permissions
+if [ "$User" = "root"  ]; then
+	#write-scripts-log "running as root" $LINENO
+	echo "NOTE script running as root could create ini file owned by root"
+fi
+
+# check parent directory exists - we want it to always exist even if we haven't created the inifile yet
+TestPath=$(dirname "$IniFile")
+if [ ! -d "$TestPath" ]; then
+	abend "arg $IniFile - dir nonexistant" $LINENO
+fi
+
+# check whether the sepecified ini file exists yet
+if [ -f "$IniFile" ]; then 
+	GotIniFile=0
+	 # sect and param (obviously) can only exist if there's a file.	
+	if (grep -q "\[$Sect\]" "$IniFile"); then 
+		GotSect=0
+	fi
+	if (grep -q "$Param =" "$IniFile");	then 
+		GotParam=0 
+	fi
+fi
+
+case "$Action" in
+	get-value)
+		if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$IniFile" = "" ]; then
+			abend "missing arg - either section ([$Sect]), param ($Param) or file ($IniFile)" $LINENO
+		elif [  "$GotIniFile" = "1" ]; then
+			abend "ini file ($IniFile) does not exist" $LINENO
+		elif [ "$GotSect" = "1" ] || [ "$GotParam" = "1" ];	then
+			abend "section ([$Sect]) or param ($Param) not found in $IniFile" $LINENO
+		else
+			sch-crudini --get "$IniFile" "$Sect" "$Param"
+			if [ $? ]; then
+				exit $Success
+			#else
+				#abend "param ($Param) not found in $IniFile" $LINENO
+			fi
+		fi;; 
+
+	set-value) # will add new section and param as necessary and create the file if it doesn't exist yet
+		if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$IniFile" = "" ]; then
+			abend "missing arg - either section ($Sect), param ($Param) or file ($IniFile)" $LINENO
+		fi
+		
+		if [ "$GotIniFile" = "1" ]; then
+			# no file so create it
+			echo > $IniFile
+			if [ ! -w $IniFile ]; then
+				abend "failed to create (or make readwrite) ini file at ($IniFile)"
+			fi
+		fi
+		
+		sch-crudini --set "$IniFile" "$Sect" "$Param" "$Value"
+		if [ $? ]; then
+			exit $Success
+		else
+			abend "unable to set [$Sect] param ($Param) value ($Value) in file ($IniFile)" $LINENO
+		fi;; 
+
+	rm-sect) # remove complete section 
+		if [ "$Param" != "" ] || [ "$Value" != "" ]; then
+			abend "redundant args ($Param) ($Value)" $LINENO
+		elif [ "$Sect" = "" ]; then
+			abend "missing arg for section ($Sect)" $LINENO
+		elif [ $GotIniFile = 1 ]; then
+			abend "ini file ($IniFile) does not exist" $LINENO
+		else
+			sch-crudini --del "$IniFile" "$Sect"
+			if [ $? ]; then
+				exit $Success
+			else
+				abend "unable to delete [$Sect] from $IniFile" $LINENO
+			fi
+		fi;;		
+
+	list-sects) # list section names, stripped of sq brackets, on stdout.
+		if [ "$Param" != "" ] || [ "$Value" != "" ]; then
+			abend "redundant args ($Param) ($Value)" $LINENO
+		elif [ $GotIniFile = 1 ]; then
+			abend "ini file ($IniFile) does not exist" $LINENO
+		else
+			sed -n '/^\[/p' "$IniFile" | sed 's/.\(.*\)/\1/' |sed 's/\(.*\)./\1/'; exit $Success
+		fi;;
+		
+	sect-exists)	
+		if [ "$Param" != "" ] || [ "$Value" != "" ]; then
+			abend "redundant args ($Param) ($Value)" $LINENO
+		else 
+			exit $GotSect
+		fi;;
+
+	entry-exists)	
+		# we look up the value specified by file/sect/param. then see if it matches the value in file
+		if [ "$IniFile" = "" ] || [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$Value" = "" ]; then
+			abend "missing arg - either section ([$Sect]), param ($Param), value ($Value) or file ($IniFile)" $LINENO
+		elif [  $GotIniFile = 1 ]; then
+			abend "ini file ($IniFile) does not exist" $LINENO
+		else
+			ActualValue=$(sch-crudini --get "$IniFile" "$Sect" "$Param")			
+			if [ $? ]; then
+				if [ "$ActualValue" = $Value ]; then exit $Success; fi
+			fi
+		fi	
+		
+		exit $Fail;;
+			
+	file-exists)
+		if [ "$Sect" != "" ] || [ "$Param" != "" ] || [ "$Value" != "" ];	then
+			abend "redundant args ($Sect) ($Param) ($Value)" $LINENO
+		else
+			exit $GotIniFile
+		fi;;
+		
+	*) abend "invalid action ($Action) for option ($OPTION)" $LINENO ;;
+esac
+
+abend "ran off the end!" $LINENO

@@ -1,0 +1,94 @@
+#!/bin/bash 
+declare -r EnableSource="Enabled"
+source /bin/sch-source-common
+declare -r Action="$1" Bundle="$2"
+declare -r BundlePath="$SchoonerPath/bundles"
+declare -r ConfigFile="$BundlePath/$Bundle/config"
+
+usage()
+{
+cat << EOF
+Script: $Script: schooner perform an action on a bundle
+
+ARGS:
+	Arg 1:               action - any one of the following actions:
+
+	sanitize             clear user data related to bundle (non-root only)
+	show-files           list config and other files related to bundle 
+	install              install bundle (root only)
+	uninstall            uninstall bundle (root only)
+	local-uninstall      uninstall bundle stuff from $HOME (non-root only)
+	describe-bundle      put bundle description from config file on stdio
+
+	Arg 2:               bundle name
+RETURNS:
+ 
+EOF
+}
+
+do-action()
+{
+	[[ -f "$BundlePath/$Bundle/$Action" ]] || abort "$BundlePath/$Bundle/$Action not found" $LINENO
+	
+	# Rtn allows return value to pass through "sourced" code. however
+	# some critical actions (eg install) will abort on error, so will
+	# ignore this mechanism.
+	declare -i Rtn=$Success 
+	write-log "$Action: $Bundle: start source exec" $LineNo
+	source "$BundlePath/$Bundle/$Action"
+
+	if [[ $Rtn = $Fail ]]; then
+		write-log "$Action:$Bundle:operation failed" $LINENO;
+	else
+		write-log "$Action:$Bundle:operation succeeded" $LINENO;
+	fi
+	
+	return $Rtn
+}
+
+write-log "$Action:$Bundle:start exec" $LINENO;
+
+[[ $Action != "" ]] 			|| { usage; abort "Arg 1 (action) missing" $LINENO; }
+[[ $Bundle != "" ]] 			|| { usage; abort "Arg 2 (bundle) missing" $LINENO; }
+[[ -d "$BundlePath/$Bundle" ]] 	|| abort "$BundlePath/$Bundle not found" $LINENO
+[[ -f "$ConfigFile" ]] 			|| abort "$ConfigFile not found" $LINENO
+
+case $Action in	
+	"show-files");; 
+	
+	"describe-bundle")
+		sch-ini -a get-value -f $ConfigFile -s "bundle-details" -p "description"
+		
+		if [[ $? != $Success ]]; then
+			abort "unable to get bundle description from $BundlePath/$Bundle" $LINENO
+		else
+			write-log "$Action:$Bundle:end exec" $LINENO; exit $Success
+		fi;;
+		
+	"install")
+		sys-online 			|| abort "system is offline" $LINENO
+		[[ "$User" = "root" ]]	|| abort "user is $User, not root" $LINENO;;
+		
+	"uninstall")
+		sys-online 			|| abort "system is offline" $LINENO
+		[[ "$User" = "root" ]]	|| abort "user is $User, not root" $LINENO;;
+				
+	"full-reset")
+		[[ "$User" != "root" ]] || abort "user is root" $LINENO;;		
+		
+	"sanitize")
+		[[ "$User" != "root" ]]	|| abort "user is root" $LINENO;;
+		
+	"local-uninstall")
+		[[ "$User" != "root" ]] || abort "user is root" $LINENO;;
+esac
+
+# if action was not picked up by the case statement, it is either invalid or a custom action.
+# if it is invalid it won't have a corresponding action source file so will be rejected by
+# do-action function. If it is custom, any validation must be done in its source file.
+
+do-action; write-log "$Action:$Bundle:end exec" $LINENO; exit $?
+
+		
+
+

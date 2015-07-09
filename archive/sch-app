@@ -1,0 +1,160 @@
+#!/bin/bash
+
+USER="$(whoami)"
+SCRIPT="$(basename "$0")"
+LOGFILE="$HOME/sch-scripts-log.txt"
+APP=$1
+BUNDLE=$2
+ACTION=$3
+SCHOONERPATH="/usr/share/schooner"
+BUNDLEPATH="$SCHOONERPATH/bundles"
+DESKTOPFILE=
+APPFULLNAME=
+HASKMENUENTRY=
+ICON=
+
+#exit values
+SUCCEEDED=0
+#FAILED=1
+ISRUNNING=2
+ABORTED=4
+
+show-usage()
+{
+cat << EOF
+SCRIPT: sch-pl-app-hdlr: schooner plugin handler application
+
+ARGS:
+	arg 1:               app name (eg kwrite recoll)
+	arg 2                bundle name
+	arg 3:               action - any one of the following actions:
+
+	is running           if $APP is running return 2 else return 0
+	kmenu-show           show $APP k-menu entry
+	kmenu-hide           hide $APP k-menu entry
+
+	RETURNS:
+	0                    succeeded
+	1                    failed
+	2                    app ($APP) is running
+	3                    action skipped because not valid for $APP
+	4                    aborted because investigation required
+EOF
+}
+
+write-log()
+{
+	echo "$SCRIPT handling $APP (in $BUNDLE): $1" >> "$LOGFILE"
+}
+
+log-and-abort()
+{
+	write-log "$1"
+	write-log "script aborted"
+	echo "$SCRIPT aborted"
+	exit $ABORTED
+}
+
+set-kmenu-then-exit()
+{
+local TARGETDESKTOPFILE=
+
+if [[ "$USER" = "root" ]] #root would change menu option in root home
+then
+	log-and-abort "cannot $ACTION because user is root"
+elif [[ "$HASKMENUENTRY" = "no" ]]
+then
+	write-log "cannot $ACTION because no k-menu entry specified - but continuing processing"
+fi
+
+#set value below root check so we don't pick up file in root's home if
+#logic changes later
+TARGETDESKTOPFILE="$HOME/.local/share/applications/$DESKTOPFILE.desktop"
+
+# Check that the desktop file specified is real
+if [[ ! -f "$TARGETDESKTOPFILE" ]]
+then
+	log-and-abort "cannot $ACTION because $TARGETDESKTOPFILE not found"
+else
+	sch-ini-change-value "$TARGETDESKTOPFILE" NoDisplay "$1"
+	exit $SUCCEEDED
+fi
+}
+
+# Start of processing
+# Check we have 3 args
+if [[ "$1" = "" ]] ||  [[ "$2" = "" ]] || [[ "$3" = "" ]]
+then
+	show-usage
+	log-and-abort "missing arg - needs 3 args"
+fi
+
+# Check we have a directory matching the bundle name
+if  [[ ! -d "$BUNDLEPATH/$BUNDLE" ]]
+then
+	echo "$BUNDLEPATH/$BUNDLE"
+	log-and-abort "Invalid bundle - $BUNDLEPATH/$BUNDLE does not exist"
+fi
+
+# Check we have a config file for the bundle
+if  [[ ! -f "$BUNDLEPATH/$BUNDLE/config" ]]
+then
+	log-and-abort "$BUNDLEPATH/$BUNDLE/config does not exist"
+fi
+
+# Check we have a section in the config file matching the app name
+if ! (grep -q "[$APP]" "$BUNDLEPATH/$BUNDLE/config") 
+then
+	log-and-abort "did not find [$APP] section in $BUNDLEPATH/$BUNDLE/config"
+fi
+
+# Read the config file section for the app
+DESKTOPFILE=$(sch-ini --get "$BUNDLEPATH/$BUNDLE/config" "$APP" "desktop-file")
+APPFULLNAME=$(sch-ini --get "$BUNDLEPATH/$BUNDLE/config" "$APP" "app-full-name")
+HASKMENUENTRY=$(sch-ini --get "$BUNDLEPATH/$BUNDLE/config" "$APP" "has-kmenu-entry")
+ICON=$(sch-ini --get "$BUNDLEPATH/$BUNDLE/config" "$APP" "icon")
+
+# Check that has-k-menu entry and desktop file are either both null or both non-null
+if [[ "$HASKMENUENTRY" = "" ]] &&  [[ "$DESKTOPFILE" != "" ]] 
+then
+	log-and-abort "k-menu entry has no corresponding desktop file"
+fi
+
+if [[ "$HASKMENUENTRY" != "" ]] &&  [[ "$DESKTOPFILE" = "" ]] 
+then
+	log-and-abort "desktop file has no corresponding k-menu entry"
+fi
+
+
+# Action invalid for bundle is a normal event but log it
+#if ! (grep -q "$ACTION" "$BUNDLEPATH/$BUNDLE/valid-actions") #why [[]] not needed??
+#then
+#	write-log "action ($ACTION) is not valid for this bundle so exit without processing"
+#	exit $SUCCEEDED
+#fi
+
+case $ACTION in	
+	"kmenu-hide")
+		set-kmenu-then-exit "true";;
+								
+	"kmenu-show")
+		set-kmenu-then-exit "false";;
+		
+	"is-running")
+		if  [[ "$(pidof "$APP")" ]]
+		then
+			write-log "found that $APP is running"
+			exit $ISRUNNING
+		else
+			write-log "found that $APP is not running"
+			exit $SUCCEEDED  #$FAILED ???
+		fi;;	
+		
+	*)
+		log-and-abort "invalid arg $ACTION"
+		
+esac
+
+		
+
+

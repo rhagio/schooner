@@ -1,0 +1,162 @@
+#!/bin/bash
+[[ $EnableSource = "Enabled" ]] || { echo 'sch-source-common cannot run standalone - it must be "sourced" from another script'; exit; }
+
+# must not be altered
+declare -r HostName="$(hostname)" Script="$(basename $0)" User="$(whoami)"
+declare -r ScriptStartTime=$(date +"%Y-%m-%d-%H-%M")
+declare -r -i Success=0 Fail=1 Abort=9 Yes=0 No=1
+
+# edit these as required
+declare -r SchoonerPath='/usr/share/schooner'
+declare -r SchConf="$SchoonerPath/sch-conf"
+declare -r SchUserConf="$HOME/.schooner/sch-user-conf"
+declare -r BaseFiles="$SchoonerPath/base-files"
+declare -r Attic="/home/attic/schooner"
+
+conv-secs-to-date() # $1=seconds (as returned by date +'%s') 
+{
+	echo $(date --date "@$1") #return via stdout
+}
+
+read-sch-conf() # $1=param
+{
+	echo inschconf
+	sch-ini -a get-value -f $SchConf -s 'general' -p $1 
+}
+
+write-sch-conf()  # $1=param $2=value
+{
+	sch-ini -a set-value -f $SchConf -p $1  -v $2
+}
+
+read-sch-user-conf() # $1=param
+{
+	sch-ini -a get-value -f $SchUserConf -s 'general' -p $1 
+}
+
+write-sch-user-conf()  # $1=param $2=value
+{
+	sch-ini -a set-value -f $SchUserConf -p $1  -v $2
+}
+
+# where schooner ini and logs are - must be declared AFTER conf file access functions
+declare  ScriptsLog=$(read-sch-conf 'scripts-log')
+declare  HKLog=$(read-sch-conf 'housekeeper-log')
+
+abort() # $1:abort-message $2:$LINENO return:always exits
+{
+	declare Message=$1 LineNum=$2 DateTime="$(date "+%m/%d/%y-%H:%M:%S")"
+	echo "$Script: aborted at line: $LineNum: $Message"
+	#echo "$DateTime: $Script: line$LineNum: aborted: $Message" >> "$ScriptsLog"
+	exit $Abort
+}
+
+# gives a convenient abort function for sourced files running many commands
+abort-cmd() # $1=Ref
+{
+	abort "command at ref $1 failed"
+}
+
+abort-if-not-root() #$1=$LINENO
+{
+	[[ $User = "root" ]] || abort "because running as $User - script must be run as root" $1
+}
+
+abort-if-root() #$1=$LINENO
+{
+	[[ $User != "root" ]] || abort "because running as root - script must not be run as root" $1
+}
+
+abort-if-basic-checks-fail() #$1=$LINENO
+{
+	[[ -f $HKLog ]] || { echo > $HKLog; chmod a+r $HKLog; }
+}
+
+report-cmd() # $1=Ref $2=Action $3=LINENO
+{
+	write-scripts-log "command $1 in $2 source file failed $3"
+}
+
+write-scripts-log() # $1:log-entry $2:$LINENO return:0
+{ 
+	declare Message=$1 LineNum=$2 DateTime="$(date "+%m/%d/%y-%H:%M:%S")"	
+	echo "$DateTime: $Script: line$LineNum: $Message" >> "$ScriptsLog"
+}
+
+prompt-y-n() # $1:prompt-message return:$Success || $Fail
+{
+	declare yn Message=$1
+		
+	echo $Message
+	
+	select yn in "Yes" "No"; do
+		case $yn in
+			Yes ) return $Yes;;
+			No )  return $No;;
+		esac
+	done 
+}
+
+log-action-not-implemented() # $1=$LINENO
+{
+	declare LineNo=$1
+	write-scripts-log "$Action: $Bundle: $Action is not implemented for $Bundle" $LineNo
+}
+
+abort-if-running() # $1=process-name $2=$LINENO
+{
+	declare ProcessName=$1 
+	declare LineNo=$2
+	
+	[[ ! "$(pidof $ProcessName)" ]] || abort "aborted because $ProcessName is running" $LineNo
+	
+}
+
+sys-online() 
+{
+	echo ldldldldldld
+	declare TmpFile=$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)
+	declare -r TestWebPage=$(read-sch-conf 'general' 'test-web-page')
+	echo mvmvmvmvmvm
+	/usr/bin/wget -q --tries=10 --timeout=20 "$TestWebPage" -O $TmpFile &> /dev/null 
+	echo hgdgdgdgdgdgd
+	if [ -s $TmpFile ]; then
+		echo jhjhjhjh
+		write-scripts-log "system is online" $LINENO
+		return $Yes
+	else
+		echo ksksksks
+		write-scripts-log "system is offline" $LINENO
+		return $No
+	fi
+}
+
+prompt-sys-online() 
+{
+	
+sys-online
+
+if [[ $? = 1 ]]; then
+	echo hooooooooooooooooooooo
+	prompt-y-n "system is off line. connect it then choose yes? or no to abort?"
+	if [[ $? = 1 ]]; then
+		echo hdddddddddddddddddddd
+		abort "system is offline and you chose to abort at prompt" $LINENO
+	else
+		echo hbbbbbbbbbbbbbbbbbbbbbb
+		sys-online
+		if [[ $? = 1 ]]; then
+		echo hvvvvvvvvvvvvvvvvvvv
+			abort "system is offline and you chose to abort at prompt" $LINENO
+		fi
+	fi
+fi
+sys-online
+
+return $?
+}
+
+
+
+
+

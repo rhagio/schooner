@@ -1,0 +1,53 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-tbak
+# Created:   06/10/2014
+# Purpose:   Get a temp backup directory: part of a set of scripts to 
+#            create and manage a temporary backup directory which can be
+#            used to make editing of several files reasonably atomic.
+# See also:  sch-tbak-add 
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-tbak-mkdir -  One of a set of three scripts to create and manage 
+       a temporary backup directory which can be used to make editing
+       several files reasonably atomic. This script creates the temp dir      
+
+SYNOPSIS
+       sch-tbak 
+
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       stdout path of newly-created temp directory
+       
+USAGE
+       TmpDir=$(sch-tbak-mkdir)     # gets a new temp directory
+  
+EOF
+}
+
+# create a string from the filespec of the edited file
+

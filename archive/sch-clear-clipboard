@@ -1,0 +1,125 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-klipper
+# Created:   02/10/2014
+# Purpose:   manipulate clipboard and klipper in useful ways
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmx.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-klipper - manipulate clipboard and klipper in useful ways
+
+SYNOPSIS
+       sch-klipper [OPTION]... [ARG]...
+
+DESCRIPTION
+
+       -c clear history
+              clear klipper's history
+
+       -d delete history items [ARG]
+              delete all klipper history entries matching ARG
+
+       -s set selection
+              put item on clipboard
+
+       -g get selection
+              get current selection from clipboard onto stdout
+
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       stdout selected text (option -g)
+       
+USAGE
+       usage+examples1
+       
+       usage+examples2
+
+EOF
+}
+
+clear_history()
+# Purpose: clear klipper history
+# Args:    none
+# Returns: 0:success 1:fail
+{
+	qdbus org.kde.klipper /klipper clearClipboardHistory
+	return $?
+}
+
+get_selection()
+# Purpose: get current clipboard selection
+# Args:    none
+# Returns: 0:success 1:fail
+# Stdout:  return current clipboard selection
+{
+	qdbus org.kde.klipper /klipper getClipboardContents
+	return $?
+}
+
+set_selection()
+# Purpose: get current clipboard selection
+# Args:    $1: text to put on clipboard
+# Returns: 0:success 1:fail
+{
+	qdbus org.kde.klipper /klipper setClipboardContents $1
+	return $?
+}
+
+delete_item()
+# Purpose: delete item matching $1
+# Args:    $1: item to be matched
+# Returns: 0:success 1:fail
+{
+	# TODO following snippet may be useful...
+	#text="nothing yet"
+	#cnt=0
+	#while [ "$text" != "" ]; do
+	#  text=`qdbus org.kde.klipper /klipper getClipboardHistoryItem $cnt`
+	#  echo "==== Clipboard content line $cnt:"
+	#  echo "$text"                      # to terminal output
+	#  echo "$text" > /path/to/file      # to file (EDIT this)
+	#  cnt=$((cnt + 1))
+	#done
+	echo "delete_item not yet implemented"
+	return 1
+}
+
+# process options and args
+local Option=''
+while getopts "cds:g" Option
+do
+	case "$Option" in		
+		c ) clear_history; exit $? ;;
+		d ) delete_item; exit $? ;;
+		s ) set_selection $1; exit $? ;; 
+		g ) get_selection; exit $? ;; 
+		* ) default-statements; usage; exit 1 ;;			   
+	esac
+done
+
+
+	

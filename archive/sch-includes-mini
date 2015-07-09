@@ -1,0 +1,61 @@
+#!/bin/dash #keep this here just to trigger syntax highlighting
+#=======================================================================
+# File:      sch-includes
+# Created:   03/10/2014
+# Purpose:   Minimal helper functions to be included in standalone scripts
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.comm
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+log_error()
+# Purpose: write entry to error log
+# Args:    $1:LINENO $2:Message
+# Returns: 0:success 1:fail
+{
+	local Log; Log="$HOME/.schooner/error-log"
+	[ -f "$Log" ] || echo > "$Log"
+	[ -f "$Log" ] || { echo "Error log $Log does not exist"; exit 9; }
+	[ -w "$Log" ] || { echo "Error log $Log is not writable"; exit 9; }
+	echo "$(date "+%m/%d/%y-%H:%M:%S"): $Script: line $1: $2" >> "$Log"
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:LINENO $2:error-message ($2 is optional)
+# Returns: never returns - always exits with $Abort
+{
+	local LineNo; LineNo=$1
+	local Message; Message=$2
+	[ "$Message" != "" ] || Message="Command failed"
+	log_error "$LineNo" "Aborted: $Message"
+	echo "$Script aborted at line $LineNo: $Message"
+	exit 9
+}
+
+abend_if_root()
+# Purpose: abort script if run by root
+# Args:    $1:LINENO 
+# Returns: never returns - abend always exits with 9
+{ [ "$User" != "root" ] || abend $1 "$Script must not be run as root"; }
+
+abend_if_not_root()
+# Purpose: abort script if not run by root
+# Args:    $1:LINENO 
+# Returns: never returns _ abend always exits with 9
+{ [ "$User" = "root" ] || abend $1 "$Script must be run as root"; }
+

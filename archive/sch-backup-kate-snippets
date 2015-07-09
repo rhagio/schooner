@@ -1,0 +1,70 @@
+#!/bin/dash
+. /usr/bin/sch-includes
+# File:      sch-backup-kate-snippets
+# Created:   24/09/2014
+# Purpose:   Backup kate text editor snippets
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+BackupDir="$1"; NumArgs="$#"
+SnippetsDir="$HOME/.kde/share/apps/ktexteditor_snippets"
+[ $NumArgs = 1 ] || BackupDir="$HOME/.kate-snippets-backup"
+MaxOldBackups=30 # if exceeded delete oldest backup
+
+usage()
+{
+cat << EOF
+NAME
+       sch-backup-kate-snippets - backup user's kate text editor snippets
+
+SYNOPSIS
+       sch-backup-kate-snippets [DIRECTORY]
+
+DESCRIPTION
+       If backup directory does not exist, create it, then backup
+       snippets (/home/<username>/.kde/share/apps/ktexteditor_snippets/data/*)
+       as a subdirectory of backup directory. If no backup directory is
+       specified, default to $HOME/.kate-snippets-backup
+       
+       Subdirectory name is <username>_kate_snippets_<yyy-hh-mm-ss>
+
+EXIT STATUS
+       0      if OK
+       1      if failed
+       
+USAGE
+       Example: sch-backup-kate-snippets $HOME/my_snippets_backup_dir
+
+EOF
+}
+
+[ $NumArgs -lt 2 ] || { abend $LINENO "invalid argument"; usage; }
+[ "$(whoami)" != 'root' ] || exception "$Script can't be run as root"
+Err="$(sch-exists -s $SnippetsDir -rd)"
+[ "$?" = 0 ] || abend $LINENO "kate snippets dir ($SnippetsDir) is $Err"
+Err="$(sch-exists -s $BackupDir -rwd)"
+[ "$?" = 0 ] || mkdir -p "$BackupDir"
+[ "$?" = 0 ] || abend $LINENO "unable to create kate snippets backup dir ($SnippetsDir)"
+rsync -avzq "$SnippetsDir" $BackupDir"/"$User"_kate_snippets_"$Now 
+[ "$?" -eq 0 ] || exit 1
+
+# rotate backup dir if necessary
+if [ $(ls -A $BackupDir |wc -l) -gt "$MaxOldBackups" ]]; then
+	cd "$BackupDir" && rm -Rf $(ls -tr | head -n 1)
+fi
+
+exit 0

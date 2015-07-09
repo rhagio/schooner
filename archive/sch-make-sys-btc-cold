@@ -1,0 +1,5 @@
+#!/bin/bash
+[[ $EnableSource = "Enabled" ]] || echo "this script must be sourced from another script!"  
+source /bin/sch-log-exec-start
+sch-bundle install bitcoin
+source /bin/sch-log-exec-start

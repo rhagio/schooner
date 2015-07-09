@@ -1,0 +1,87 @@
+#!/bin/bash
+declare -r EnableSource="Enabled"
+source /bin/sch-source-common
+declare Mode=
+declare Flavour=
+
+# TODO adobe-flash-properties kde 
+
+usage()
+{
+cat << EOF
+Script: $Script: convert netrunner to schooner
+
+OPTIONS:
+   -m      set mode (value must be "devel" or "product")
+   -f      Set Flavour (value must be "vanilla" "btc-cold" or "btc-hot)
+   
+EOF
+}
+
+write-log ":start exec" $LINENO;
+
+if [[ $User != "root"  ]]; then
+	abort "you are running as $User - you need to be root" $LINENO
+fi
+
+# check for running apps likely to derail us later in process
+[[ ! "$(pidof recoll)" ]] || abort "recoll is running" $LINENO
+[[ ! "$(pidof recollindex)" ]] || abort "recollindex is running" $LINENO
+
+
+while getopts "m:f:" OPTION
+do
+	case $OPTION in
+		m) Mode=$OPTARG
+			if [[ $Mode != "devel" ]] && [[ $Mode != "product" ]]; then
+				abort "invalid option ($Mode)" $LINENO
+			fi;;
+			
+		f) Flavour=$OPTARG
+			if [[ $Flavour != "vanilla" ]] && [[ $Flavour != "btc-hot" ]] && [[ $Flavour != "btc-cold" ]]; then
+				abort "invalid option ($Flavour)" $LINENO
+			fi;;
+			
+		?) usage; abort "invalid option ($OPTION)" $LINENO;;
+	esac
+done
+
+prompt-sys-online
+if [[ $? = 1 ]]; then 
+	abort "cannot continue because system is offline" $LINENO
+fi
+	
+prompt-y-n "you ran sch-make-sys and then rebooted?"
+if [[ $? = $No ]]; then
+	abort "you chose to abort at prompt" $LINENO
+fi
+
+prompt-y-n "thorough check for running apps? they may not be detected!"
+if [[ $? = $No ]]; then
+	abort "you chose to abort at prompt" $LINENO
+fi
+
+apt-get update			|| abort-cmd 001 $Action $LINENO
+apt-get --yes dist-upgrade	|| abort-cmd 002 $Action $LINENO
+
+prompt-y-n "Just applied any outstanding updates to system. Yes to continue No to abort"
+if [[ $? = $No ]]; then
+	abort "you chose to abort at prompt" $LINENO
+fi
+
+case $Flavour in
+	vanilla)	source /bin/sch-make-sys-vanilla
+	;;
+	
+	btc-hot)	#source /bin/sch-make-sys-btc-hot
+	;; 	
+	
+	btc-cold)	#source /bin/sch-make-sys-btc-cold
+	;;
+esac
+
+# update malware databases and create 
+
+
+write-log ":end exec" $LINENO;
+

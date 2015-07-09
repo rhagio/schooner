@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# Create a skeleton from current user home directory.
+# Give option to overwrite /etc/skel with it
+
+declare -r EnableSource="Enabled"
+source /bin/sch-source-common								|| abort-cmd 001 $Action $LINENO
+
+[[ "$User" != "root" ]]										|| abort "you must not run $Script as root" $LINENO
+prompt-y-n "Did you clean up and then reboot?" 				|| abort "you chose to abort at prompt" $LINENO
+prompt-y-n "Did you delete any unwanted files in $HOME?" 	|| abort "you chose to abort at prompt" $LINENO
+prompt-y-n "Did you close running applications?" 			|| abort "you chose to abort at prompt" $LINENO
+
+# copy $HOME to temporary skeleton, omitting stuff we don't want
+declare -r TmpSkel="user1-skel-$ScriptStartTime"
+
+rsync -avz \
+	--exclude '.armory/' \
+	--exclude '.bitcoin/' \
+	--exclude '.bluefish/autosave/' \
+	--exclude '.cache/*' \
+	--exclude '.cache' \
+	--exclude '.cddb/*' \
+	--exclude '.clamtk/db/*' \
+	--exclude '.clamtk/history/*' \
+	--exclude '.clamtk/viruses/*' \
+	--exclude '.config/banshee-1/log' \
+	--exclude '.config/insync' \
+	--exclude '.config/vokoscreen/vokoscreen.log' \
+	--exclude '.dbus' \
+	--exclude '.dropbox*' \
+	--exclude '.face.icon' \
+	--exclude '.googleearth/' \
+	--exclude '.kde/Autostart/' \
+	--exclude '.kde/cache*' \
+	--exclude '.kde/Env/' \
+	--exclude '.kde/share/apps/gwenview/recentfolder/*' \
+	--exclude '.kde/share/apps/gwenview/recenturls/*' \
+	--exclude '.kde/share/apps/kate/metainfos' \
+	--exclude '.kde/share/apps/kate/sessions/*' \
+	--exclude '.kde/share/apps/kconf_update/log/update.log' \
+	--exclude '.kde/share/apps/kcookiejar/*' \
+	--exclude '.kde/share/apps/kfileplaces/bookmarks.*' \
+	--exclude '.kde/share/apps/nepomuk/' \
+	--exclude '.kde/share/apps/okular/docdata/'  \
+	--exclude '.kde/share/config/email*' \
+	--exclude '.kde/share/config/insync.pyrc' \
+	--exclude '.kde/shutdown/' \
+	--exclude '.kde/socket*' \
+	--exclude '.kde/tmp*' \
+	--exclude '.local/share/akona*' \
+	--exclude '.local/share/baloo/' \
+	--exclude '.local/share/contacts/' \
+	--exclude '.local/share/gvfs-metadata/' \
+	--exclude '.local/share/keyrings/' \
+	--exclude '.local/share/marble/' \
+	--exclude '.local/share/notes/' \
+	--exclude '.local/share/recently-used.xbel' \
+	--exclude '.local/share/telepathy/' \
+	--exclude '.local/share/Trash/' \
+	--exclude '.macromedia' \
+	--exclude '.mozilla/firefox/urmsktfc.default/*.bak' \
+	--exclude '.mozilla/firefox/urmsktfc.default/extensions.sqlite' \
+	--exclude '.mozilla/firefox/urmsktfc.default/*.log' \
+	--exclude '.mozilla/firefox/urmsktfc.default/weave/logs/*' \
+	--exclude '.recoll/aspdict.en.rws' \
+	--exclude '.recoll/history' \
+	--exclude '.recoll/idxstatus.txt' \
+	--exclude '.recoll/index.pid' \
+	--exclude '.recoll/index.pid' \
+	--exclude '.recoll/missing' \
+	--exclude '.recoll/ptrans' \
+	--exclude '.recollweb/*' \
+	--exclude '.recoll/webcache/*' \
+	--exclude '.recoll/xapiandb/*' \
+	--exclude '.thumbnails/*' \
+	--exclude 'user1-skel*' \
+	--exclude '.VirtualBox/*.log*' \
+	--exclude '.wine-browser/' \
+	--exclude '.Xauthority' \
+	--exclude '.xsession-errors*' \
+	--exclude 'Audiobooks/' \
+	--exclude 'Camera Downloads/' \
+	--exclude 'Documents/' \
+	--exclude 'Downloads/' \
+	--exclude 'Drop*' \
+	--exclude 'E-Books/' \
+	--exclude 'Music/' \
+	--exclude 'Network/' \
+	--exclude 'Pictures/' \
+	--exclude 'Podcasts/' \
+	--exclude 'user1-skel*' \
+	--exclude 'Videos/' \
+	--exclude 'Virtual Machines/' \
+	--exclude 'Web Archives/' \
+$HOME/ $TmpSkel													|| abort-cmd 002 $Action $LINENO
+
+# excluded some folders from rsync to lose user data so put them back (done
+# to preserve .directory files which specify folder icons)
+# TODO will eventually copy in sample data here
+cp -R $BaseFiles/home-folder-tree/* $TmpSkel					|| abort-cmd 003 $Action $LINENO
+
+# Replace absolute user path (/home/user) with placeholder
+grep -rl "$HOME" "$TmpSkel" | xargs sed -i "s/\/home\/$User/$placeholder/g"	|| abort-cmd 004 $Action $LINENO
+#"s/\/home\/$username/$placeholder/g"
+# Clear the kicker plasmoid's fav applications list by replacing config file
+#kickerconfig="$TmpSkel/.kde/share/config/homerunkickerrc"
+#echo $kickerconfig
+#echo "[Tab0][Source0]" > $kickerconfig
+#echo "RecentApps=" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source3]" >> $kickerconfig
+#echo "Favorites=shutdown,suspend" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source5][PlasmaRunnerManager]">> $kickerconfig
+#echo "LaunchCounts=" >> $kickerconfig
+
+# Get latest version of sch-user-pre-kde-startup-tasks.sh into skel
+rm $TmpSkel/.kde/env/sch-user-pre-kde-startup-tasks.sh			|| abort-cmd 005 $Action $LINENO
+cp /bin/sch-user-pre-kde-startup-tasks.sh   $TmpSkel/.kde/env/	|| abort-cmd 006 $Action $LINENO
+
+# Setup Schooner user config directory and files
+if [ -d "$TmpSkel/.schooner" ]; then
+	rm -R $TmpSkel/.schooner									|| abort-cmd 007 $Action $LINENO
+fi
+
+mkdir $TmpSkel/.schooner										|| abort-cmd 008 $Action $LINENO
+SchConfigFile=$TmpSkel/.schooner/sch-user-config				|| abort-cmd 009 $Action $LINENO
+echo 'FirstUserRun=True' > $SchConfigFile						|| abort-cmd 010 $Action $LINENO
+echo 'StopDropboxStartupNag=True' >> $SchConfigFile				|| abort-cmd 011 $Action $LINENO
+
+# Start user off with faceless icon
+cp $BaseFiles/user-icons/Faceless.png $TmpSkel/.face.icon		|| abort-cmd 011 $Action $LINENO
+
+
+# TODO clean up config files left behind by dev tools
+
+# Insync
+
+# Remove the [Desktop Action action0] - [Desktop Action action<n>] entries
+# from insync add to service menu files, to strip user-specific data.
+# This is a crude hack and it will fail if Insync adds  more lines to the
+# initial [Desktop Entry] section.
+#CONFIGFILE="$HOME/.kde/share/kde4/services/ServiceMenus/insync_addtoservicemenu1.desktop"
+#TEMPFILE=$HOME/.schooner/tmp/sch-strip-insync-config-tmp-$RANDOM
+#head -n 9  $CONFIGFILE > $TEMPFILE
+#sleep 1 # make dead sure no race condition
+#mv $TEMPFILE $CONFIGFILE
+
+# "Current" pickled skel is the one that will be picked up by sch-convert-netrunner.
+rm -R $Attic/current-skel								|| abort-cmd 013 $Action $LINENO
+cp -R $TmpSkel	$Attic/current-skel						|| abort-cmd 014 $Action $LINENO
+chmod -R a+rw $Attic/current-skel						|| abort-cmd 015 $Action $LINENO
+
+# backup newly-created skel
+cp -R $TmpSkel		$Attic/skels/						|| abort-cmd 016 $Action $LINENO
+chmod -R a+rw $Attic/skels/$TmpSkel						|| abort-cmd 017 $Action $LINENO
+
+# Overwrite /etc/skel with a pickled skeleton.
+prompt-y-n "Do you want to overwrite /etc/skel with new skeleton now?)"
+
+if [[ $? ]]; then
+	sudo rm -R /etc/skel								|| abort-cmd 018 $Action $LINENO
+	sudo mv $TmpSkel	/etc/skel						|| abort-cmd 019 $Action $LINENO
+	sudo chmod -R a+r /etc/skel							|| abort-cmd 020 $Action $LINENO
+
+	write-log "you overwrote /etc/skel with $TmpSkel" $LINENO
+fi

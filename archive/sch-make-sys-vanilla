@@ -1,0 +1,43 @@
+#!/bin/bash
+write-log "$Action:$Bundle:source file:start exec" $LINENO;
+[[ $EnableSource = "Enabled" ]] || echo "this script must be sourced from another script!" 
+
+add-apt-repository --yes ppa:dlynch3							|| abort-cmd 101 $Action $LINENO
+#add-apt-repository --yes ppa:freefilesync/ffs						|| abort-cmd 001 $Action $LINENO
+apt-get --yes update										|| abort-cmd 102 $Action $LINENO
+
+# insync
+#gdebi -n $BaseFiles/insynch/insync_1.0.29.31750_i386.deb???????
+
+# misc
+apt-get --yes install		hugin								|| abort-cmd 103 $Action $LINENO
+apt-get --yes install		openshot openshot-doc					|| abort-cmd 104 $Action $LINENO
+apt-get --yes install		nautilus-dropbox						|| abort-cmd 105 $Action $LINENO
+apt-get --yes install		plasma-runners-addons					|| abort-cmd 106 $Action $LINENO
+apt-get --yes install		inkscape							|| abort-cmd 107 $Action $LINENO
+#apt-get --yes install		freefilesync						|| abort-cmd 016 $Action $LINENO
+apt-get --yes install		ksudoku							|| abort-cmd 109 $Action $LINENO
+apt-get --yes install		kiriki							|| abort-cmd 110 $Action $LINENO
+apt-get --yes install		gnome-color-manager					|| abort-cmd 111 $Action $LINENO
+apt-get --yes install		digikam digikam-doc 					|| abort-cmd 112 $Action $LINENO
+apt-get --yes install		libmygpo-qt1						|| abort-cmd 113 $Action $LINENO
+apt-get --yes install		rapid-photo-downloader					|| abort-cmd 114 $Action $LINENO
+
+# bundles
+
+# Clean up
+apt-get --yes autoremove								|| abort-cmd 116 $Action $LINENO
+apt-get --yes clean									|| abort-cmd 117 $Action $LINENO
+
+# remove unwanted solid actions that were just installed
+if [[ -f usr/share/kde4/apps/solid/actions/digikam* ]]; then
+	rm usr/share/kde4/apps/solid/actions/digikam*
+else
+													report-cmd 118 $Action $LINENO
+fi
+
+# system k menu. this is done here because each flavour has its own k-menu
+#cp $BaseFiles/menu/applications-kmenuedit.menu  $HOME/.config/menus/		|| abort-cmd 016 $Action $LINENO
+#cp -R $BaseFiles/menu/applications/*  $HOME/.local/share/applications/		|| abort-cmd 016 $Action $LINENO
+
+write-log "$Action:$Bundle:source file:end execWWWWWWW" $LINENO;

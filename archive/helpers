@@ -1,0 +1,172 @@
+#!/bin/bash
+# helpers =====================================================================
+declare -r HostName="$(hostname)" 
+declare -r Script="$(basename $0)" 
+declare -r User="$(whoami)"
+declare -r Now=$(date +"%Y-%m-%d-%H-%M")
+declare -r Success=0 Fail=1 Abort=9 Yes=0 No=1
+declare -r SchPath='/usr/share/schooner'
+declare -r GlobalConf="$SchPath/global-conf"
+declare -r UserSchPath="$HOME/.sch"
+declare -r UserConf="$SchUserPath/user-conf"
+declare -r SchDev='/home/attic/sch-dev'
+
+prompt-y-n()
+# Purpose: allow user to select yes/no response to message printed to terminal
+# Args:    $1:message
+# Returns: 0:yes 1:no
+{
+	echo $1	
+	select YN in "Yes" "No"; do
+		case $YN in
+			Yes ) return 0;;
+			No )  return 1;;
+		esac
+	done 
+}
+
+process-is-running()
+# Purpose: report whether or not specified process is running
+# Args:    $1:process-name
+# Returns: 0:yes 1:no
+{
+	 return pidof $1
+}
+
+get-global-conf()
+# Purpose: get value from param=value pair in schooner global config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{
+	sch-ini -a get-value -f $GlobalConf -s 'general' -p $1; return $? 
+}
+
+set-global-conf()
+# Purpose: set value in param=value pair in schooner global config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+{
+	sch-ini -a set-value -f $GlobalConf -s 'general' -p $1  -v $2; return $%
+}
+
+get-user-conf()
+# Purpose: get value from param=value pair in schooner user config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{
+	sch-ini -a get-value -f $UserConf -s 'general' -p $1; return $? 
+}
+
+set-user-conf()
+# Purpose: set value in param=value pair in schooner user config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+{
+	sch-ini -a set-value -f $UserConf -s 'general' -p $1  -v $2; return $%
+}
+
+log-error()
+# Purpose: write entry to error log
+# Args:    $1:LINENO $2:Message
+# Returns: 0:success 1:fail
+{
+	local LineNo=$1 Message=$2 Timestamp="$(date "+%m/%d/%y-%H:%M:%S")"
+	local ErrLog=$(get-global-conf 'error-log')
+	[[ -f "$ErrLog" ]] || {echo "Error log $ErrLog does not exist"; exit $Abort;}
+	[[ -w "$ErrLog" ]] || {echo "Error log $ErrLog is not writable"; exit $Abort;}
+	echo "$Timestamp: $Script: line $LineNo: $Message" >> "$ErrLog"
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:LINENO $2:error-message ($2 is optional)
+# Returns: never returns - always exits with $Abort
+{
+	local LineNo=$1 Message=$2
+	[[ $Message != '' ]] || Message="Command failed"
+	log-error "$LineNo" "Aborted: $Message"
+	echo "$Script aborted at line $LineNo: $Message"
+	exit $Abort
+}
+
+abend-if-root()
+# Purpose: abort script if run by root
+# Args:    $1:LINENO 
+# Returns: never returns - abend always exits with $Abort
+{
+	[[ $User != "root" ]] || abend $1 "$Script must not be run as root"
+}
+
+abend-if-not-root()
+# Purpose: abort script if not run by root
+# Args:    $1:LINENO 
+# Returns: never returns - abend always exits with $Abort
+{
+	[[ $User = "root" ]] || abend $1 "$Script must be run as root"
+}
+
+abend-if-process-running()
+# Purpose: call abend if specified process is running
+# Args:    $1:LINENO $2:process-name 
+# Returns: never returns - abend always exits with $Abort
+{
+	process-is-running $2
+	if [[ $? = 0 ]]; then
+		return 0
+	else
+		abend $2 "aborting because process $1 is running"
+	fi
+}
+
+system-is-online()
+# Purpose: test whether system is online or not
+# Args:    none
+# Returns: 0:online 1:offline
+{
+	local TmpFile=$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)
+	local WebPage=$(read-sch-conf 'general' 'test-web-page')
+	/usr/bin/wget -q --tries=10 --timeout=20 "$WebPage" -O $TmpFile &> /dev/null 
+	
+	if [ -s "$TmpFile" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+prompt-if-offline()
+# Purpose: if system is offline prompt user to take some action
+# Args:    $1:message
+# Returns: 0:online 1:offline
+{
+	system-is-online
+	if [[ $? = 1 ]]; then
+		prompt-y-n "system is off line. connect then choose yes? or no to abort?"
+		if [[ $? = 1 ]]; then
+			abort "system is offline and you chose to abort at prompt" $LINENO
+		else
+			system-is-online
+			if [[ $? = 1 ]]; then
+				abort "system is offline and you chose to abort at prompt" $LINENO
+			else
+				return 0
+			fi
+		fi
+	else
+		return 0
+	fi
+}
+
+convert-seconds-to-date()
+# Purpose: convert seconds since epoch into date
+# Args:    $1:seconds
+# Returns: 0:success 1:fail
+# Stdout:  date
+{
+	echo $(date --date "@$1") #return via stdout
+}
+
+# eof helpers ==================================================================

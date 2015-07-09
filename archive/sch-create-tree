@@ -1,0 +1,58 @@
+#!/bin/bash
+# sch-replicate-tree © Bill Cane schoonerdemo@gmail.com 22/09/2014 
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+declare SourcePath=$1; DestPath=$2; NumArgs=$# #declare before set nounset
+set -o nounset; set -o errexit
+
+usage()
+{
+cat << EOF
+NAME
+       sch-replicate-tree - replicate a directory but omit files to create
+                            an 'empty' directory tree. Abort if destination 
+                            directory already exists.
+
+SYNOPSIS
+       sch-replicate-tree [OPTION]... source-dir destination-dir
+
+EXIT STATUS
+       0      if OK
+
+       1      if failed
+       
+USAGE
+       Example: sch-replicate-tree /some/directory /destination/directory
+
+EOF
+}
+if [[ $NumArgs -gt 3 ]]; then
+	usage
+	exit 1
+fi
+
+if [[ $SourcePath = '' ]] || [[ $DestPath = '' ]]; then
+	usage
+	exit 1
+fi
+
+if  [[ -e $DestPath ]]; then
+	echo 'destination already exists'
+	exit 1
+fi
+
+rsync -av -f"+ */" -f"- *" $SourcePath $DestPath
+exit $?

@@ -1,0 +1,209 @@
+#!/bin/dash
+
+# Create a skeleton from current user home directory.
+# Give option to overwrite /etc/skel with it
+
+. /usr/bin/sch-includes
+
+abend_if_root '48289'
+#prompt_y_n "Did you clean up and then reboot?" 				|| abend "you chose to abort at prompt" '67925'
+#prompt_y_n "Did you delete any unwanted files in $HOME?" 	|| abend "you chose to abort at prompt" '29623'
+#prompt_y_n "Did you close running applications?" 			|| abend "you chose to abort at prompt" '24070'
+
+# copy $HOME to temporary skeleton, omitting stuff we don't want
+readonly DateStamp=$(date "+%m-%d-%y-%H:%M:%S")
+readonly TmpSkel="user1-skel-$DateStamp"
+readonly User="$(whoami)"
+
+#	--exclude '.kde/share/config/mailtransports'
+#	--exclude '.kde/share/config/email*'
+#	--exclude '.bash_history'
+#	--exclude '.config/akonadi/*'
+#	--exclude '.kde/share/apps/activitymanager/resources/database'
+#	--exclude '.kde/share/config/akonadi*'
+#	--exclude '.local/share/akona*' \
+
+# TODO .kde/share/kde4/services/ServiceMenus/insync_addtoservicemenu.desktop check if excluding
+# this messes up insync - see also the comment further down
+rsync -avz \
+	--exclude '.armory/' \
+	--exclude '.bitcoin/' \
+	--exclude '.bluefish/autosave/' \
+	--exclude '.cache/*' \
+	--exclude '.cddb/*' \
+	--exclude '.clamtk/db/*' \
+	--exclude '.clamtk/history/*' \
+	--exclude '.clamtk/viruses/*' \
+	--exclude '.config/banshee-1/log' \
+	--exclude '.config/insync/*' \
+	--exclude '.config/vokoscreen/vokoscreen.log' \
+	--exclude '.config/Clementine/*.db' \
+	--exclude '.config/Clementine/*.bak' \
+	--exclude '.config/Clementine/moodbarcache/*' \
+	--exclude '.config/Clementine/networkcache/*' \
+	--exclude '.config/Insync' \
+	--exclude '.dbus' \
+	--exclude '.dropbox*' \
+	--exclude '.everpad/*' \
+	--exclude '.gitconfig' \
+	--exclude '.face.icon' \
+	--exclude '.googleearth/' \
+	--exclude '.kde/Autostart/' \
+	--exclude '.kde/cache*' \
+	--exclude '.kde/Env/' \
+	--exclude '.kde/share/apps/RecentDocuments/*' \
+	--exclude '.kde/share/apps/gwenview/recentfolder/*' \
+	--exclude '.kde/share/apps/gwenview/recenturls/*' \
+	--exclude '.kde/share/apps/kate/metainfos' \
+	--exclude '.kde/share/apps/kate/sessions/*' \
+	--exclude '.kde/share/apps/kconf_update/log/update.log' \
+	--exclude '.kde/share/apps/kcookiejar/*' \
+	--exclude '.kde/share/apps/kfileplaces/bookmarks.*' \
+	--exclude '.kde/share/apps/nepomuk/' \
+	--exclude '.kde/share/apps/okular/docdata/'  \
+	--exclude '.kde/share/config/insync.pyrc' \
+	--exclude '.kde/share/config/katerc' \
+	--exclude '.kde/share/config/kmenueditrc' \
+	--exclude '.kde/share/config/webaccounts' \
+	--exclude '.kde/share/kde4/services/ServiceMenus/insync_addtoservicemenu.desktop' \
+	--exclude '.kde/shutdown/' \
+	--exclude '.kde/socket*' \
+	--exclude '.kde/tmp*' \
+	--exclude '.local/share/baloo/' \
+	--exclude '.local/share/contacts/' \
+	--exclude '.local/share/gvfs-metadata/' \
+	--exclude '.local/share/keyrings/' \
+	--exclude '.local/share/marble/' \
+	--exclude '.local/share/local-mail/*' \
+	--exclude '.local/share/notes/' \
+	--exclude '.local/share/recently-used.xbel' \
+	--exclude '.local/share/telepathy/' \
+	--exclude '.local/share/Trash/' \
+	--exclude '.local/share/user-places.xbel.bak' \
+	--exclude '.local/share/user-places.xbel.tbcache' \
+	--exclude '.macromedia' \
+	--exclude '.mozilla/firefox/urmsktfc.default/*.bak' \
+	--exclude '.mozilla/firefox/urmsktfc.default/extensions.sqlite' \
+	--exclude '.mozilla/firefox/urmsktfc.default/*.log' \
+	--exclude '.mozilla/firefox/urmsktfc.default/weave/logs/*' \
+	--exclude '.mozilla/firefox/Crash Reports/*' \
+	--exclude '.recoll/aspdict.en.rws' \
+	--exclude '.recoll/history' \
+	--exclude '.recoll/idxstatus.txt' \
+	--exclude '.recoll/index.pid' \
+	--exclude '.recoll/index.pid' \
+	--exclude '.recoll/missing' \
+	--exclude '.recoll/ptrans' \
+	--exclude '.recollweb/*' \
+	--exclude '.recoll/webcache/*' \
+	--exclude '.recoll/xapiandb/*' \
+	--exclude '.thumbnails/*' \
+	--exclude 'user1-skel*' \
+	--exclude '.VirtualBox/*.log*' \
+	--exclude '.wine-browser/' \
+	--exclude '.Xauthority' \
+	--exclude '.xsession-errors*' \
+	--exclude 'Audiobooks/' \
+	--exclude 'Camera Downloads/' \
+	--exclude 'Documents/' \
+	--exclude 'Archive/' \
+	--exclude 'Downloads/' \
+	--exclude 'Drop*' \
+	--exclude 'Google*' \
+	--exclude 'Steam/' \
+	--exclude 'E-Books/' \
+	--exclude 'Music/' \
+	--exclude 'Network/' \
+	--exclude 'Pictures/' \
+	--exclude 'Projects/' \
+	--exclude 'projects/' \
+	--exclude 'Desktop/' \
+	--exclude 'Podcasts/' \
+	--exclude 'user1-skel*' \
+	--exclude 'Videos/' \
+	--exclude 'Virtual Machines/' \
+	--exclude 'Web Archives/' \
+$HOME/ "$HOME/$TmpSkel"																|| abend '99939'
+
+# Operations on files that can easily have user-specific data removed
+ini_set_value "$HOME/$TmpSkel/.kde/share/config/kdeglobals" 'DirSelect Dialog' 'History Items[$e]' ''			|| abend '84198'
+
+# excluded some folders from rsync to lose user data so put them back (done
+# to preserve .directory files which specify folder icons)
+# TODO will eventually copy in sample data here
+cp -R "$SchDev/home-folders/Pictures" "$TmpSkel"							|| abend '10402'
+cp -R "$SchDev/home-folders/Documents" "$TmpSkel"							|| abend '74052'
+cp -R "$SchDev/home-folders/Videos" "$TmpSkel"								|| abend '24879'
+cp -R "$SchDev/home-folders/Music" "$TmpSkel"								|| abend '16947'
+cp -R "$SchDev/home-folders/Archive" "$TmpSkel"								|| abend '32595'
+cp -R "$SchDev/home-folders/Camera Downloads" "$TmpSkel"					|| abend '93718'
+cp -R "$SchDev/home-folders/Desktop" "$TmpSkel"								|| abend '29630'
+cp -R "$SchDev/home-folders/Network" "$TmpSkel"								|| abend '73850'
+cp -R "$SchDev/home-folders/Downloads" "$TmpSkel"							|| abend '70302'
+
+# Some files mix user data and general config so need to omit them from the rsync above and
+# then copy a replacement file in. So each copy operation below should match an omission in
+# the rsync above
+
+# no need to touch any of the other .kde/share/config/kate* files - no user data in them
+cp -f "$SchDev/base-files/kate/katerc" "$TmpSkel/.kde/share/config"
+
+# Replace absolute user path (/home/user) with placeholder.
+grep -rl "$HOME" "$TmpSkel" | xargs sed -i "s/\/home\/$User/$PlaceHolder/g"	|| abend $Action '43153'
+#"s/\/home\/$username/$placeholder/g"
+# Clear the kicker plasmoid's fav applications list by replacing config file
+#kickerconfig="$TmpSkel/.kde/share/config/homerunkickerrc"
+#echo $kickerconfig
+#echo "[Tab0][Source0]" > $kickerconfig
+#echo "RecentApps=" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source3]" >> $kickerconfig
+#echo "Favorites=shutdown,suspend" >> $kickerconfig
+#echo "" >> $kickerconfig
+#echo "[Tab0][Source5][PlasmaRunnerManager]">> $kickerconfig
+#echo "LaunchCounts=" >> $kickerconfig
+
+# Get latest version of sch-user-pre-kde-startup-tasks.sh into skel
+cp -f /usr/bin/sch-user-pre-kde-startup-tasks.sh   "$TmpSkel/.kde/env/"			|| abend 006 $Action '40367'
+
+# Setup Schooner user config directory and files
+rm -Rf $TmpSkel/.schooner													|| abend '87711'
+mkdir $TmpSkel/.schooner													|| abend '36194'
+cp -f $SchDev/user-conf $TmpSkel/.schooner									|| abend '33764'
+
+# Start user off with faceless icon
+#cp $BaseFiles/user-icons/Faceless.png $TmpSkel/.face.icon					|| abend '29891'
+
+# TODO clean up config files left behind by dev tools
+
+# Insync
+
+# Remove the [Desktop Action action0] - [Desktop Action action<n>] entries
+# from insync add to service menu files, to strip user-specific data.
+# This is a crude hack and it will fail if Insync adds  more lines to the
+# initial [Desktop Entry] section.
+#CONFIGFILE="$HOME/.kde/share/kde4/services/ServiceMenus/insync_addtoservicemenu1.desktop"
+#TEMPFILE=$HOME/.schooner/tmp/sch-strip-insync-config-tmp-$RANDOM
+#head -n 9  $CONFIGFILE > $TEMPFILE
+#sleep 1 # make dead sure no race condition
+#mv $TEMPFILE $CONFIGFILE
+
+# "Current" pickled skel is the one that will be picked up by sch-convert-netrunner.
+rm -R $SchDev/current-skel													|| abend '45732'
+cp -R $TmpSkel	$SchDev/current-skel										|| abend '27781'
+chmod -R a+rw $SchDev/current-skel											|| abend '60456'
+
+# backup newly-created skel
+cp -R $TmpSkel		$SchDev/skels/											|| abend '87788'
+chmod -R a+rw $SchDev/skels/$TmpSkel										|| abend '96081'
+
+# Overwrite /etc/skel with a pickled skeleton.
+#prompt_y_n "Do you want to overwrite /etc/skel with new skeleton now?)"
+
+#if [ $? ]; then
+	sudo rm -R /etc/skel													|| abend '15993'
+	sudo mv $TmpSkel	/etc/skel											|| abend '41151'
+	sudo chmod -R a+r /etc/skel												|| abend '23509'
+
+	echo "you overwrote /etc/skel with $TmpSkel"
+#fi

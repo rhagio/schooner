@@ -1,0 +1,281 @@
+#!/bin/bash
+# installs common to all flavours. this isn't properly a base system
+# in the sense that it is not very functional by itself.
+
+write-log "$Action:$Bundle:source file:start exec" $LINENO;
+[[ $EnableSource = "Enabled" ]] || echo "this script must be sourced from another script!"
+
+# uninstall from netrunner base installation
+apt-get --yes --purge remove 	gnome-chess					|| abort-cmd 002 $Action $LINENO   
+apt-get --yes --purge remove 	gnudoq					|| abort-cmd 003 $Action $LINENO
+apt-get --yes --purge remove 	kate						|| abort-cmd 004 $Action $LINENO
+apt-get --yes --purge remove 	karbon					|| abort-cmd 005 $Action $LINENO
+apt-get --yes --purge remove	yakuake					|| abort-cmd 006 $Action $LINENO
+apt-get --yes --purge remove 	qmmp						|| abort-cmd 007 $Action $LINENO
+apt-get --yes --purge remove 	kdenlive					|| abort-cmd 008 $Action $LINENO
+apt-get --yes --purge remove 	konqueror					|| abort-cmd 009 $Action $LINENO
+apt-get --yes --purge remove	vlc						|| abort-cmd 010 $Action $LINENO
+apt-get --yes --purge remove	telnet					|| abort-cmd 010a $Action $LINENO
+
+add-apt-repository --yes ppa:samrog131/ppa				|| abort-cmd 016 $Action $LINENO
+add-apt-repository --yes ppa:djcj/vlc-stable				|| abort-cmd 017 $Action $LINENO
+
+apt-get --yes update								|| abort-cmd 018a $Action $LINENO
+
+# install
+apt-get --yes install 		python-pip					|| abort-cmd 019 $Action $LINENO
+apt-get --yes install		python3-pip					|| abort-cmd 020 $Action $LINENO
+apt-get --yes install		gdebi-core					|| abort-cmd 021 $Action $LINENO
+apt-get --yes install		ppa-purge					|| abort-cmd 022 $Action $LINENO
+
+# thumbnailers from main repos
+apt-get --yes install		kde-thumbnailer-deb			|| abort-cmd 023 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-openoffice		|| abort-cmd 024 $Action $LINENO
+apt-get --yes install		kdegraphics-mobipocket			|| abort-cmd 025 $Action $LINENO
+apt-get --yes install		kdegraphics-thumbnailers		|| abort-cmd 026 $Action $LINENO
+
+# thumbnailers from Sam Rog PPA
+apt-get --yes install		kde-thumbnailer-epub			|| abort-cmd 027 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-apk			|| abort-cmd 028 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-audiothumbs		|| abort-cmd 029 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-cb7thumbnails		|| abort-cmd 030 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-chm			|| abort-cmd 031 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-fb2			|| abort-cmd 032 $Action $LINENO
+apt-get --yes install		kde-thumbnailer-moviethumbs		|| abort-cmd 033 $Action $LINENO
+
+# not sure which repo
+apt-get --yes install kde-thumbnailer-ffmpeg-real-thumbs-mattepaint || abort-cmd 034 $Action $LINENO
+apt-get --yes install kde-thumbnailer-ffmpegthumbs-mattepaint	|| abort-cmd 035 $Action $LINENO
+
+# thumbnailers from local deb
+gdebi -n $BaseFiles/kde-thumbnailer-blender_0.3kayosiiiubuntu1_i386.deb || abort-cmd 036 $Action $LINENO
+gdebi -n $BaseFiles/kde-thumbnailer-wings3d_0.2kayosiii5ubuntu1_i386.deb || abort-cmd 037 $Action $LINENO
+
+# deja-dup
+apt-get --yes install		deja-dup					|| abort-cmd 038 $Action $LINENO
+apt-get --yes install		deja-dup-backend-s3			|| abort-cmd 039 $Action $LINENO
+apt-get --yes install		deja-dup-backend-cloudfiles		|| abort-cmd 040 $Action $LINENO
+apt-get --yes install		deja-dup-backend-gvfs			|| abort-cmd 041 $Action $LINENO
+
+# K3B helpers
+apt-get --yes install 		normalize-audio				|| abort-cmd 042 $Action $LINENO
+apt-get --yes install		sox						|| abort-cmd 043 $Action $LINENO
+apt-get --yes install		transcode					|| abort-cmd 044 $Action $LINENO
+#need to add emovix
+
+# misc
+apt-get --yes install		kwrite					|| abort-cmd 045 $Action $LINENO
+apt-get --yes install		filelight					|| abort-cmd 046 $Action $LINENO
+apt-get --yes install		speedcrunch					|| abort-cmd 047 $Action $LINENO
+apt-get --yes install		sqlite3					|| abort-cmd 054 $Action $LINENO
+apt-get --yes install		plasma-runners-addons			|| abort-cmd 055 $Action $LINENO
+apt-get --yes install		libreoffice-style-oxygen		|| abort-cmd 056 $Action $LINENO
+apt-get --yes install		vlc browser-plugin-vlc			|| abort-cmd 057 $Action $LINENO
+apt-get --yes install		kpartsplugin				|| abort-cmd 058 $Action $LINENO
+apt-get --yes install		kde-service-menu-fuseiso		|| abort-cmd 059 $Action $LINENO
+apt-get --yes install		kde-service-menu-kim4			|| abort-cmd 059a $Action $LINENO
+apt-get --yes install		libmygpo-qt1				|| abort-cmd 060 $Action $LINENO
+apt-get --yes install		kgpg						|| abort-cmd 062 $Action $LINENO
+apt-get --yes install		apg						|| abort-cmd 062a $Action $LINENO
+apt-get --yes install		xclip						|| abort-cmd 062b $Action $LINENO
+apt-get --yes install		kde-config-cddb				|| abort-cmd 050 $Action $LINENO
+apt-get --yes install		adobe-flash-properties-kde		|| abort-cmd 053a $Action $LINENO
+apt-get --yes install		ktouch					|| abort-cmd 053b1 $Action $LINENO
+apt-get --yes install		kubuntu-driver-manager			|| abort-cmd 053b $Action $LINENO
+apt-get --yes install		browser-plugin-libreoffice		|| abort-cmd 053b2 $Action $LINENO
+apt-get --yes install		myspell-en-gb				|| abort-cmd 053b3 $Action $LINENO
+apt-get --yes install		kcharselect					|| abort-cmd 053b3a $Action $LINENO
+pip iniparse									|| abort-cmd 053a $Action $LINENO
+
+# Security - Linux Malware Detect (maldet), clamAV, rkhunter, spamassassin,
+# Advanced Intrusion Detection Environment - install them all first
+apt-get --yes install		clamav					|| abort-cmd 062c $Action $LINENO
+apt-get --yes install		clamav-daemon				|| abort-cmd 062d $Action $LINENO
+apt-get --yes install		clamav-unofficial-sigs			|| abort-cmd 062d3 $Action $LINENO
+apt-get --yes install		libclamunrar6				|| abort-cmd 062d2 $Action $LINENO
+apt-get --yes install		spamassassin				|| abort-cmd 062e $Action $LINENO
+apt-get --yes install		rkhunter					|| abort-cmd 052 $Action $LINENO
+apt-get --yes install		aide						|| abort-cmd 052a $Action $LINENO
+
+# set up clam
+#clamav unofficial sigs initial database update
+clamav-unofficial-sigs 								|| abort-cmd 062e2 $Action $LINENO
+
+#TODO can i run above command from here or do i need to cd to installation dir??
+# TODO add freshclam to cron
+# note that clamav configuration is done with command line options, one of which points to
+#whitelist file
+
+# install and set up maldet
+$BaseFiles/maldet/maldetect-1.4.2/install.sh				|| abort-cmd 062e2 $Action $LINENO
+
+if [[ -f /usr/local/maldetect/conf.maldet ]]; then
+	rm /usr/local/maldetect/conf.maldet					|| abort-cmd 062g1 $Action $LINENO
+else
+											abort-cmd 062g2 $Action $LINENO
+fi
+cp $BaseFiles/maldet/conf.maldet  /usr/local/maldetect/conf.maldet || abort-cmd 062g3 $Action $LINENO
+
+if [[ -f /usr/local/maldetect/ignore_paths ]]; then
+	rm /usr/local/maldetect/ignore_paths				|| abort-cmd 062g4 $Action $LINENO
+else
+											abort-cmd 062g5 $Action $LINENO
+fi
+cp $BaseFiles/maldet/ignore_paths  /usr/local/maldetect/ignore_paths || abort-cmd 062g6 $Action $LINENO
+
+# aide (will need to create first dbase when system all installed)
+if [[ -f /etc/aide/aide.conf ]]; then
+	rm /etc/aide/aide.conf							|| abort-cmd 062g4a $Action $LINENO
+else
+											abort-cmd 062g5 $Action $LINENO
+fi
+cp $BaseFiles/aide/aide.conf  /etc/aide/aide.conf			|| abort-cmd 062g6 $Action $LINENO
+
+# configure firewall
+
+#Common Ports and Services (for reference)
+#FTP - 21 TCP
+#SSH - 22 TCP
+#TELNET - 23 TCP
+#SMTP - 25 TCP
+#DNS - 53 TCP/UDP
+#DHCP - 67 , 68 DHCP
+#HTTP - 80 TCP
+#POP3 - 110 TCP
+#IMAP - 143 TCP
+#HTTPS - 443 TCP
+#VNC - 5900-6000
+#IRC - 6667-7000
+#Gmail SMTP TLS: 587
+#Gmail SMTP SSL: 465
+#Gmail POP SSL: 995
+#Gmail IMAP SSL: 993
+
+apt-get --yes install		ufw					|| abort-cmd 062h $Action $LINENO
+apt-get --yes install		ufw-kde					|| abort-cmd 062i $Action $LINENO
+ufw disable								|| abort-cmd 062j $Action $LINENO
+ufw reset 								|| abort-cmd 062k $Action $LINENO
+ufw enable								|| abort-cmd 062l $Action $LINENO
+# default rules
+ufw default deny incoming && sudo ufw default deny outgoing		|| abort-cmd 062m $Action $LINENO
+# outbound tcp rule SMTP, DNS, HTTP, POP3, HTTPS
+ufw allow out 25,53,80,110,443/tcp					|| abort-cmd 062n $Action $LINENO
+#outbound udp rule DNS, DHCP, DHCP
+ufw allow out 53,67,68/udp						|| abort-cmd 062o $Action $LINENO
+# QTransmission rule
+ufw allow out 51413/tcp							|| abort-cmd 062p $Action $LINENO
+ufw allow out 51413/udp							|| abort-cmd 062q $Action $LINENO
+ufw allow out 6969/tcp							|| abort-cmd 062r $Action $LINENO
+# re-start firewall
+ufw disable && sudo ufw enable						|| abort-cmd 062s $Action $LINENO
+
+# dev tools
+if [[ $Mode = "devel" ]]; then
+	apt-get update							|| abort-cmd 062t $Action $LINENO
+	apt-get --yes install sqlitebrowser				|| abort-cmd 063 $Action $LINENO
+	apt-get --yes install libghc-highlighting-kate-dev		|| abort-cmd 064 $Action $LINENO
+	apt-get --yes install powertop					|| abort-cmd 065 $Action $LINENO
+	apt-get --yes install nmap					|| abort-cmd 065a $Action $LINENO
+	apt-get --yes install zenmap					|| abort-cmd 065b $Action $LINENO
+	apt-get --yes install bootchart					|| abort-cmd 065c $Action $LINENO
+	apt-get --yes install pybootchartgui				|| abort-cmd 065d $Action $LINENO
+	apt-get --yes install vim					|| abort-cmd 065d1 $Action $LINENO
+	apt-get --yes install vim-gui-common				|| abort-cmd 065d1 $Action $LINENO
+	apt-get --yes install bashdb					|| abort-cmd 065d2 $Action $LINENO
+	# devscripts to get checkbashism bash syntax checker
+	apt-get --yes install devscripts					|| abort-cmd 065d3 $Action $LINENO
+
+	# cabal installer for haskell - need it for shellcheck
+	apt-get --yes install cabal-install				|| abort-cmd 065e $Action $LINENO
+	apt-get update							|| abort-cmd 065f $Action $LINENO
+	cabal update							|| abort-cmd 065g $Action $LINENO
+	cabal install shellcheck					|| abort-cmd 065h $Action $LINENO
+
+fi
+
+# bundles
+sch-bundle install remastersys						|| abort-cmd 066 $Action $LINENO
+sch-bundle install recoll						|| abort-cmd 067 $Action $LINENO
+
+# Clean up
+apt-get --yes autoremove						|| abort-cmd 068 $Action $LINENO
+apt-get --yes clean								|| abort-cmd 069 $Action $LINENO
+
+# solid actions
+if [[ -f /usr/share/kde4/apps/solid/actions/gwenview*	]]; then
+	rm /usr/share/kde4/apps/solid/actions/gwenview*
+else
+											report-cmd 070 $Action $LINENO
+fi
+
+if [[ -f /usr/share/kde4/apps/solid/actions/amarok* ]]; then
+	rm /usr/share/kde4/apps/solid/actions/amarok*
+else
+											report-cmd 071 $Action $LINENO
+fi
+
+# Because K3B currently crashes ripping DVDs
+if [[ -f /usr/share/kde4/apps/solid/actions/k3b_videodvd_rip.desktop ]]; then
+	rm /usr/share/kde4/apps/solid/actions/k3b_videodvd_rip.desktop
+else
+											report-cmd 073 $Action $LINENO
+fi
+
+cp $BaseFiles/solid-actions/*  /usr/share/kde4/apps/solid/actions	|| abort-cmd 074 $Action $LINENO
+
+# service menus
+if [[ -f /usr/share/kde4/services/ServiceMenus/amarok* ]]; then
+	rm /usr/share/kde4/services/ServiceMenus/amarok*
+else
+											report-cmd 074a $Action $LINENO
+fi
+
+cp $BaseFiles/service-menus/*   /usr/share/kde4/services/ServiceMenus || abort-cmd 075 $Action $LINENO
+
+# user documentation
+
+if [[ -d /usr/share/schooner ]]; then
+											report-cmd 076 $Action $LINENO
+else
+	mkdir /usr/share/schooner
+fi
+
+if [[ -d /usr/share/schooner/userdoc ]]; then
+											report-cmd 077 $Action $LINENO
+else
+	mkdir /usr/share/schooner/userdoc
+fi
+cp $BaseFiles/userdoc/*  /usr/share/schooner/userdoc			|| abort-cmd 078 $Action $LINENO
+
+if [[ -d /usr/share/schooner/urls ]]; then
+											report-cmd 080 $Action $LINENO
+else
+	mkdir /usr/share/schooner/urls
+fi
+cp $BaseFiles/urls/*  /usr/share/schooner/urls/				|| abort-cmd 081 $Action $LINENO
+
+# Graphics
+if [[ -f /usr/share/wallpapers/* ]]; then
+	rm -R /usr/share/wallpapers/*
+else
+											report-cmd 082 $Action $LINENO
+fi
+
+cp -R $BaseFiles/wallpapers/*   /usr/share/wallpapers			|| abort-cmd 083 $Action $LINENO
+
+
+if [[ -f /usr/share/kde4/apps/kdm/pics/users/* ]]; then
+	rm -R /usr/share/kde4/apps/kdm/pics/users/*
+else
+											report-cmd 085 $Action $LINENO
+fi
+cp -R $BaseFiles/user-icons/*    /usr/share/kde4/apps/kdm/pics/users || abort-cmd 086 $Action $LINENO
+# TODO need to get these oxyfolders into different sizes
+cp $BaseFiles/oxyfolders-256x256/*   /usr/share/icons/oxygen/256x256/places	|| abort-cmd 087 $Action $LINENO
+# Replace Netrunner fancy Konsole Background with plain black
+cp $BaseFiles/black-background.jpg    /usr/share/netrunner/konsole.jpg	|| abort-cmd 088 $Action $LINENO
+# Use same black background for various purposes
+cp $BaseFiles/black-background.jpg   /usr/share/schooner/black-background.jpg	|| abort-cmd 089 $Action $LINENO
+
+
+write-log "$Action:$Bundle:source file:end exec" $LINENO;
