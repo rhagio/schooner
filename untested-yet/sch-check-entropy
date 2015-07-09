@@ -1,0 +1,34 @@
+#!/bin/dash
+
+readonly BitsEntropy=$(cat /proc/sys/kernel/random/entropy_avail)
+Verbage=''
+
+usage()
+{
+cat << EOF
+Script: sch-check-entropy: return entropy pool level in bits, on standard output
+
+ARGS:
+     -v        verbose
+
+RETURNS:
+	stdout   entropy pool level in bits
+      0        undefined
+      1        undefined
+
+EOF
+}
+
+
+
+while getopts "v" OPTION
+do
+	case $OPTION in
+		v) Verbiage=" bits of entropy in pool (4096=full, <200=low)";;
+		?) ;;
+	esac
+done
+
+echo "$BitsEntropy$Verbage"
+
+

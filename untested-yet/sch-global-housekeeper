@@ -1,0 +1,398 @@
+#!/bin/dash
+# Manage database update downloads for various utilities so that databases stay current
+# even when the system is active and online only for short and irregular periods. Stagger
+# updates to minimise impact on user. This script is to be run by root cron every 15 minutes.
+#
+# Packages called by this script should have their own update mechanisms disabled to avoid
+# unecessary system load.
+#
+# We don't try to monitor last update times from timestamps because it gets too messy.
+# Instead, we track it all in one log file
+#
+# maldet: Linux Malware Detect aka LMD maldetect
+# rkhunter: Rootkit Hunter
+# clamav: Clam Antivirus
+# AIDE: Advanced Intrusion Detection Environment
+
+#set -o nounset; set -o errexit
+. /usr/bin/sch-includes
+readonly NA='x'
+
+# params (in log)
+readonly pTime='time'
+readonly pApp='app'
+readonly pOp='operation'
+readonly pStatus='status'
+readonly pIssues='issues'
+readonly pExplain='explanation'
+readonly pActionTaken='action-taken'
+readonly pAdvice='advice'
+
+# apps
+readonly aRKHunter='Rootkit Hunter'
+readonly aMaldet='Linux Malware Detect'
+readonly aClamAV='Clam Anti-Virus'
+readonly aHKeep='Housekeeper'
+
+# advice
+readonly aMalAdvice='stub for advice if malware found'
+
+# explanations
+readonly aMalExplain='FOUND POTENTIAL MALWARE ON THIS COMPUTER'
+readonly xNoServer='could not contact download server'
+readonly xUpToDate='found that malware signatures are up-to-date'
+readonly xDunno='did not have enough info to tell why'
+readonly xZeroMal='found no malware on this computer'
+readonly xEntropyExplain='entropy is randomness stored ...'
+
+#issues
+readonly iEntropyDepleted='entropy pool level is depleted'
+
+# operations
+readonly oMalScan='scan this computer for malware'
+readonly oDownloadSigs='download updated malware signatures'
+readonly oStartPeak='start a network peek'
+readonly oSampleEntropy='sample entropy pool'
+
+#status
+readonly sComplete='was completed'
+readonly sFail='was not completed'
+readonly sEntropyLevel1='completed - pool has' sEntropyLevel2='bits of entropy'
+
+usage()
+{
+cat << EOF
+Script: "$Script": schooner housekeeping primarily for cron - to be run as root
+
+ARGS:
+     -u    update only - update all databases
+
+RETURNS:
+      0    success (for updates: all databases were updated, or servers were contacted
+           to confirm no updates are necessary) (for scans: scan was run and may or
+           may not have found issues)
+      1    fail (for updates: one or more databases were not updated - perhaps because
+           system is offline) (for scans: scan failed to run or failed to complete)
+
+EOF
+}
+
+hk_get_record() # $1=timepoint $2=param
+{
+	ini_get_value "$gHKLog" "$1" "$2"
+}
+
+hk_set_record() # $1=app $2=operation $3=status $4=issues $5=explanation $6=action-taken $7=advice
+{
+	# each log record has seconds-from-epoch as a section header. if we write the next record
+	# to log within one second, it will overwrite the previous record. so we wait a bit.
+	sleep 2
+	local Now; Now=$(date +"%s")
+
+	#mandatory entries
+	ini_set_value  "$gHKLog" "$Now" "$pTime" "$(convert_seconds_to_date "$Now")"
+	ini_set_value  "$gHKLog" "$Now" "$pApp" "$1"
+	ini_set_value  "$gHKLog" "$Now" "$pOp" "$2"
+	ini_set_value  "$gHKLog" "$Now" "$pStatus" "$3"
+
+	#optional entries
+	[ "$4" = "$NA" ] || ini_set_value "$gHKLog" "$Now" "$pIssues" "$4"
+	[ "$5" = "$NA" ] || ini_set_value "$gHKLog" "$Now" "$pExplain" "$5"
+	[ "$6" = "$NA" ] || ini_set_value "$gHKLog" "$Now" "$pActionTaken" "$6"
+	[ "$7" = "$NA" ] || ini_set_value "$gHKLog" "$Now" "$pAdvise" "$7"
+}
+
+get_mr_timepoint() # $1=app $2=operation $3=status. return=matching timepoint or 0 if no match
+{
+	local TmPoint; TmPoint=0
+	local AppMatch; AppMatch=0
+	local OpMatch; OpMatch=0
+	local StatusMatch; StatusMatch=0
+	local MRTmPoint; MRTmPoint='0'
+	local TmPointList
+	TmPointList=$(sed -n '/^\[/p' "$gHKLog" | sed 's/.\(.*\)/\1/' |sed 's/\(.*\)./\1/' |sort -r)
+
+	while IFS= read -r TmPoint; do
+		ini_line_exists "$gHKLog" "$TmPoint" "$pApp" "$1"; AppMatch=$?
+		ini_line_exists "$gHKLog" "$TmPoint" "$pOp" "$2"; OpMatch=$?
+		ini_line_exists "$gHKLog" "$TmPoint" "$pStatus" "$3"; StatusMatch=$?
+
+		if [ "$AppMatch" = 0 ] && [ "$OpMatch" = 0 ] && [ "$StatusMatch" = 0 ]; then
+			MRTmPoint="$TmPoint";  break
+		fi
+
+		MRTmPoint='0'
+
+	done << EOF
+	"$TmPointList"
+EOF
+
+	echo "$MRTmPoint" # return via stdout
+}
+
+user_warn() # $1=timepoint
+{
+	local Time; Time=$(hk_get_record $1 "$pTime")
+	local App; App=$(hk_get_record $1 "$pApp")
+	local Op; Op=$(hk_get_record $1 "$pOp")
+	local Status; Status=$(hk_get_record $1 "$pStatus")
+	local Issues; Issues=$(hk_get_record $1 "$pIssues")
+	local Explain; Explain=$(hk_get_record $1 "$pExplain")
+	local ActionTaken; ActionTaken=$(hk_get_record $1 "$pActionTaken")
+	local Advice; Advice=$(hk_get_record $1 "$pAdvise")
+	echo "$App attempted to $Op at $Time. This was $Status. Issues were $Issues $Explain"
+}
+
+
+sample_entropy()
+{
+	local Entropy; Entropy="$(cat /proc/sys/kernel/random/entropy_avail)"
+	local WarnLevel; WarnLevel="$(get_global_conf 'entropy-warn-level-bits')"
+	local Status; Status="$sEntropyLevel1 $Entropy $sEntropyLevel2"
+	local Issues; Issues="$NA" Explain="$NA"
+
+	if [ $Entropy -le $WarnLevel ]; then
+		Issues="$iEntropyDepleted";	Explain="$xEntropyExplain"
+	fi
+
+	hk_set_record "$aHKeep" "$oSampleEntropy" "$Status" "$Issues" "$Explain" "$NA" "$NA"
+}
+
+peek_network()
+{
+	local App; App="$aHKeep" Op="$oStartPeak" Status="$sComplete"
+	local LastPeek; LastPeek=$(get_mr_timepoint "$App" "$Op" "$Status")
+	local IntervalHours; IntervalHours=$(get_global_conf 'network-peek-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local PeekDue; PeekDue=$(( LastPeek + Interval ))
+	local Duration; Duration=$(get_global_conf 'network-peek-duration-minutes')
+
+	if [ $(date +"%s") -ge $PeekDue ]; then
+		hk_set_record "$App" "$Op" "$Status" "$NA" "$NA" "$NA" "$NA"
+		sch-peek-network "$Duration" &
+	fi
+}
+
+update_maldet()
+{
+	local App; App="$aMaldet" Op="$oDownloadSigs"
+	local LastUpdate; LastUpdate=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'maldet-update-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local UpdateDue; UpdateDue=$(( LastUpdate + Interval ))
+
+	# maldet's return values are uninformative so grep stdout for more useful exit status
+	if [ $(date +"%s") -ge $UpdateDue ]; then
+		if [ $(maldet --update |grep 'latest signature set already installed') ]; then
+			hk_set_record "$App" "$Op" "$sComplete" "$NA" "$xUpToDate" "$NA" "$NA"; return 0
+		elif [ $(maldet --update |grep 'could not download signature data') ]; then
+			hk_set_record "$App" "$Op" "$sFail" "$NA" "$xNoServer" "$NA" "$NA"; return 1
+		elif [ $(maldet --update |grep 'signature set update done') ]; then
+			hk_set_record "$App" "$Op" "$sComplete" "$NA" "$xUpToDate" "$NA" "$NA"; return 0
+		else
+			hk_set_record "$App" "$Op" "$sFail" "$NA" "$xDunno" "$NA" "$NA"; return 1
+		fi
+	fi
+
+	return 1
+}
+
+scan_maldet()
+{
+	local App; App="$aMaldet" Op="$oMalScan"
+	local LastScan; LastScan=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'maldet-scan-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local ScanDue; ScanDue=$(( LastScan + Interval ))
+	local Results; Results='' ScanRtn=
+
+	if [ $(date +"%s") -ge $ScanDue ]; then
+		Results=$(maldet --scan-all /home/attic); ScanRtn=$?
+
+		if [  $(echo "$Results" |grep -c 'scan returned zero results') = '1' ]; then
+			hk_set_record "$App" "$Op" "$sComplete" "$NA" "$xZeroMal" "$NA" "$NA"; return 0
+		else
+			Results2=$(echo "$Results" | \
+					grep '^maldet(' | \
+					cut -c22- | \
+					sed '/signatures loaded/d' \
+					sed '/building file list/d')
+
+			case $ScanRtn in
+				0)	hk_set_record "$App" "$Op" "$sComplete" "$NA" "$aMalExplain" "$NA" "$NA"; return 0;;
+				?)	hk_set_record "$App" "$Op" "$sFail" "$NA" "$xDunno" "$NA" "$NA";;
+			esac
+		fi
+	fi
+
+	return 1
+}
+
+update_rkhunter()
+{
+	local App; App="$aRKHunter" Op="$oDownloadSigs"
+	local LastUpdate; LastUpdate=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'rkhunter-update-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local UpdateDue; UpdateDue=$(( LastUpdate + Interval ))
+	local Status; Status=''
+	local Explain; Explain=''
+	local Issues; Issues=''
+	local FnRtn; FnRtn=1
+	local UpdRtn; UpdRtn=''
+
+	if [ $(date +"%s") -ge $UpdateDue ]; then
+		rkhunter --unlock # in case interrupted run left database locked
+		rkhunter --update --nocolors; UpdRtn=$? #rkhunter manual suggests nocolors if use cron
+		case $UpdRtn in
+			0)	Status="$sComplete"; Explain="$xUpToDate"; FnRtn=0;;
+			1)	Status="$sFail"; Explain="$xNoServer";;
+			2)	Status="$sComplete"; Explain="$xUpToDate"; FnRtn=0;;
+			?)	Status="$sFail"; Explain="$xDunno";;
+		esac
+
+		hk_set_record "$App" "$Op" "$Status" "$NA" "$Explain" "$NA" "$NA"
+		rkhunter --unlock # in case we left database locked
+
+	fi
+	return $FnRtn
+}
+
+scan_rkhunter()
+{
+	local App; App="$aRKHunter" Op="$oMalScan"
+	local App; LastScan=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'rkhunter-scan-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local ScanDue; ScanDue=$(( LastScan + Interval ))
+	local Status; Status=''
+	local Explain; Explain=''
+	local Issues; Issues=''
+	local FnRtn; FnRtn=1
+	local FnRtn; ScanRtn=''
+
+	if [ $(date +"%s") -ge $ScanDue ]; then
+		rkhunter --unlock # incase failed run left database locked
+		Issues=$(rkhunter --check --cronjob --report-warnings-only); ScanRtn=$?
+
+		case $ScanRtn in
+			0)	Status="$sComplete"; Explain="$xZeroMal"; FnRtn=0;;
+			1)	Status="$sComplete"; Explain="$aMalExplain"; FnRtn=0;; #warnings
+			?)	Status="$sFail"; Explain="$xDunno";;
+		esac
+
+		rkhunter --unlock # incase we left database locked
+		hk_set_record "$App" "$Op" "$Status"  "$Issues" "$Explain" "$NA" "$NA"
+	fi
+
+	return $FnRtn
+}
+
+update_clamav()
+{
+
+	# TODO need to incorporate clamav-unofficial-sigs work out why downloads fail
+	local App; App="$aClamAV" Op="$oDownloadSigs"
+	local LastUpdate; LastUpdate=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'clamav-update-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local UpdateDue; UpdateDue=$(( LastUpdate + Interval ))
+	local Status; Status=''
+	local Explain; Explain=''
+	local Issues; Issues=''
+	local FnRtn; FnRtn=1
+	local UpdRtn; UpdRtn=''
+
+	if [ $(date +"%s") -ge $UpdateDue ]; then
+		freshclam --quiet; UpdRtn=$?
+
+		case $UpdRtn in
+			0)	Status="$sComplete"; Explain="$xUpToDate"; FnRtn=0;;
+			58)	Status="$sFail"; Explain="$NoServer";;
+			?)	Status="$sFail"; Explain="$xDunno";;
+		esac
+
+		hk_set_record "$App" "$Op" "$Status"  "$NA" "$Explain" "$NA" "$NA"
+	fi
+
+	return $FnRtn
+}
+
+scan_clamav()
+{
+	local App; App="$aClamAV" Op="$oMalScan"
+	local LastScan; LastScan=$(get_mr_timepoint "$App" "$Op" "$sComplete")
+	local IntervalHours; IntervalHours=$(get_global_conf 'clamav-scan-interval-hours')
+	local Interval; Interval=$(( IntervalHours * 3600 ))
+	local ScanDue; ScanDue=$(( LastScan + Interval ))
+	local Status; Status=''
+	local Explain; Explain=''
+	local Issues; Issues=''
+	local FnRtn; FnRtn=1
+	local FnRtn; ScanRtn=''
+
+	if [ $(date +"%s") -ge $ScanDue ]; then
+
+		Issues=$(clamscan  \
+				$(sed -e 's/^/--exclude=/' "$(get_global_conf 'clamav-whitelist')") \
+				--recursive \
+				--official-db-only=no \
+				--no-summary \
+				--infected \
+				"$HOME"); ScanRtn=$?
+
+		case $ScanRtn in
+			0)	Status="$sComplete";  Explain="$xZeroMal"; FnRtn=0;;
+			1)	Status="$sComplete";  Explain="$aMalExplain"; FnRtn=0;;
+			?)	Status="$sFail";  Explain="$xDunno";; # other error
+		esac
+
+		#if [ $ScanRtn = '1' ]; then
+		#	$Advice=""
+
+		echo "$Results"; echo "$Results2"
+		hk_set_record "$App" "$Op" "$Status" "$Issues" "$Explain" "$NA" "$aMalAdvice"
+	fi
+
+	return $FnRtn
+}
+
+update_only()
+{
+	update_rkhunter
+	update_clamav
+	update_maldet
+}
+
+cron_mode()
+{
+	# run these every time
+	#peek_network
+	#sample_entropy
+
+	# run through these until one has succeeded, then quit
+	local Res; Res=''
+	#update_rkhunter; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+	#scan_rkhunter; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+	#update_clamav; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+	scan_clamav; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+	#update_maldet; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+	#scan_maldet; Res=$?; if [ $Res -eq 0 ]; then return 0; fi
+
+}
+
+#abend_if_not_root '99580'
+
+# [ $(stat -c %U "$gHKLog") = 'root' ] || rm "$gHKLog" # would be security risk if not owned by root
+
+[ -f "$gHKLog" ] || { echo > "$gHKLog"; chmod a-rwx,u+rw,o+r "$gHKLog"; } # if no logfile, create now
+
+while getopts "u" OPTION
+do
+     case $OPTION in
+	   u) update_only; exit;;
+	   *) ;;
+	esac
+done
+
+cron_mode

@@ -1,0 +1,17 @@
+# !/bin/dash
+
+# mark ~/.kde/share/config/plasma-desktop-appletsrc as immutable
+# by placing [i] on line 1
+
+CONFIGFILE=~/.kde/share/config/plasma-desktop-appletsrc
+TEMPFILE=$(mktemp)
+
+if [ $(head -n 1 $CONFIGFILE) = "[i]" ]
+then
+  exit 1
+else
+  echo "[i]" > $TEMPFILE
+  cat $CONFIGFILE >> $TEMPFILE
+  mv $TEMPFILE $CONFIGFILE
+  exit 0
+fi

@@ -1,0 +1,6 @@
+#!/bin/bash 
+
+username=$(whoami)
+userhomedir="/home/$username"
+placeholder="==z0x1c2d3=placeholder=f4s5x6c7x=="	
+grep -rl "$placeholder" $userhomedir |  xargs sed -i "s/$placeholder/\/home\/$username/g" #clumsy but can't make work without hard-coding!

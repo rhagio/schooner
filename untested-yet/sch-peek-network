@@ -1,0 +1,7 @@
+#!/bin/dash
+
+# open up the network for $1 minutes
+sleep 9m # delay to prevent messing up any download started at same time
+ifconfig wlan0 up
+sleep "$1m"
+ifconfig wlan0 down

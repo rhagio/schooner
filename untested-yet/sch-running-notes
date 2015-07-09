@@ -1,0 +1,76 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-running-notes
+# Created:   08/10/2014
+# Purpose:   Add to a list of one-off notes
+# Author:    Bill Cane
+# Email:     schoonerdmo@gmail.com
+# Copyright: © author
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-includes
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-running-notes - Add to a list of one-off notes
+
+SYNOPSIS
+       sch-running-notes
+
+DESCRIPTION
+
+EOF
+}
+NotesFile="$(get_user_conf 'running-notes-file')"
+BackupDir="$(get_user_conf 'running-notes-backup-dir')"
+MaxBaksToKeep="$(get_user_conf 'running-notes-max-backups')" 
+
+timestamp=$(date "+%m/%d/%Y at %H:%M:%S")
+Title=$(kdialog --title "$Title" --inputbox "Type a title for your note...")
+[ "$?" = 0 ] || exit 1
+
+Url=$(kdialog --title "$Title" --inputbox "If you want, paste or type a web address here...")
+[ "$?" = 0 ] || exit 1
+
+Note=$(kdialog --title "$Title" --inputbox "Type or paste your note here ...")
+[ "$?" = 0 ] || exit 1
+
+Key=$(kdialog --title "$Title" --inputbox "If you want, add some keywords ...")
+[ "$?" = 0 ] || exit 1
+
+Ref=$(tr -c -d 0-9 < /dev/urandom | head -c 10)
+
+# TODO trim whitespace from bottom of file
+echo >> "$NotesFile"; echo >> "$NotesFile"
+echo "DATE: $timestamp" >> "$NotesFile"
+echo >> "$NotesFile"
+echo "REF: $Ref" >> "$NotesFile"
+echo >> "$NotesFile"
+echo "TITLE: $Title" >> "$NotesFile"
+echo >> "$NotesFile"
+echo "URL: $Url" >> "$NotesFile"
+echo >> "$NotesFile"
+echo "NOTE: $Note" >> "$NotesFile"
+echo >> "$NotesFile"
+echo "KEYWORDS: $Key" >> "$NotesFile"; echo >> "$NotesFile"
+
+
+backup_rotate "$NotesFile" "$BackupDir" 'running-notes-backup' "$MaxBaksToKeep"

@@ -1,0 +1,48 @@
+#!/bin/dash
+. /usr/bin/sch-includes
+# File:      sch-backup-kate-snippets
+# Created:   24/09/2014
+# Purpose:   Backup kate text editor snippets
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+usage()
+{
+cat << EOF
+NAME
+       sch-backup-kate-snippets - backup user's kate text editor snippets
+
+SYNOPSIS
+       sch-backup-kate-snippets
+
+DESCRIPTION
+       Read $HOME/user-conf to get a location for a backup directory. If the
+       directory does not already exist, create it. Then backup snippets (ie
+       $HOME/.kde/share/apps/ktexteditor_snippets/data/*) in a new subdirectory
+       named <username>_kate_snippets_<yyy-hh-mm-ss> as a subdirectory of the
+       backup directory.
+
+EXIT STATUS
+       0      if OK
+       1      if failed
+
+EOF
+}
+abend_if_root '14969'
+cyclic_backup '/home/bill/.kde/share/apps/ktexteditor_snippets/' 'snippets'
+return $?

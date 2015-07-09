@@ -1,0 +1,8 @@
+#!/bin/bash 
+# Replace all instances of placeholder string in $1 with $HOME
+# $1 can be any valid input to grep
+username=$(whoami)
+userhomedir="/home/$username"
+placeholder="==z0x1c2d3=placeholder=f4s5x6c7x=="	
+grep -rl "$placeholder" $1 |  xargs sed -i "s/$placeholder/\/home\/$username/g" #clumsy but can't make work without hard-coding!
+echo "sch-replace-placeholder-with-userpath: replaced placeholders in $1 with $HOME" >> sch-scripts-log.txt

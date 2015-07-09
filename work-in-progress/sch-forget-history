@@ -1,0 +1,431 @@
+#!/bin/dash 
+. '/usr/bin/sch-includes' # NOTE
+set -u
+set -e
+
+#=======================================================================
+# File:      sch-forget-history
+# Created:   01/10/2014
+# Purpose:   Remove from user account any data that should not be present
+#            in a skeleton created from that account. This may or may not
+#            end up also being suitable for user privacy protection.
+# Notes:     To work properly this script must only be run on a schooner 
+#            system with /etc/skel correctly populated.
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-forget-history - Remove from user account any data that should 
+       not be present in a skeleton created from that account.
+
+SYNOPSIS
+       sch-forget-history [OPTION]
+
+DESCRIPTION
+ 
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       
+USAGE
+       Can only be run by a non-root user and only deletes data from the
+       home directory of that user
+       
+EOF
+}
+
+forget_recoll()
+# Purpose: forget recoll search engine index and recollweb data
+# Returns: 0:success 1:fail
+{
+	# recoll and recollweb
+	rm -Rf $HOME/.recoll		
+	cp -Rf /etc/skel/.recoll $HOME		
+	rm -Rf $HOME/.recollweb			
+	rm -Rf $HOME/.config/Recoll.org			
+	cp -Rf /etc/skel/.config/Recoll.org	$HOME/.config	
+	rm $HOME/.kde/share/config/recollrc		
+	cp /etc/skel/.kde/share/config/recollrc	$HOME/.kde/share/config/
+	rm $HOME/.config/autostart/recollindex.desktop	
+	cp /etc/skel/.config/autostart/recollindex.desktop	$HOME/.config/autostart
+	# TODO search history
+	# TODO will recollindex and web  start ok after logging back in?
+}
+
+forget_firefox()
+# Purpose: forget firefox web browser
+# Returns: 0:success 1:fail
+{
+	return
+	# Firefox
+	test=`ps -A | grep " firefox"`
+	if [ "$test" = "" ]; then
+		rm -f "$userhome/.mozilla/firefox/*/cookies.*"
+		rm -f "$userhome/.mozilla/firefox/*/bookmarkbackups/*"
+		rm -rf "$userhome/.mozilla/firefox/*/Cache/*"
+		rm -rf "$userhome/.mozilla/firefox/*/Cache.Trash/*"
+		rm -rf "$userhome/.mozilla/firefox/*/OfflineCache/*"
+		rm -f "$userhome/.mozilla/firefox/*/downloads.*"
+		rm -f "$userhome/.mozilla/firefox/*/formhistory.*"
+		# Remove residual data from firefox sqlite databases
+		# this section not needed unless vacuum-all section is disabled
+		#if [ -d $userhome/.mozilla ]; then
+		#	f=`find $userhome/.mozilla -type f -name '*.sqlite' 2> /dev/null`
+		#	if [ "$f" != "" ]; then
+		#		for fline in $f; do
+		#			backup "$fline"
+		#			log "VACUUM: $fline" "verb"
+		#			if (( optsim != 1 )); then
+		#				sqlite3 "$fline" 'VACUUM;'
+		#			fi
+		#		done
+		#	fi
+		#fi
+		# Remove Flash cookies
+		rm -rf "$userhome/.adobe/Flash_Player/*"
+		rm -rf "$userhome/.macromedia/Flash_Player/*"
+	fi
+	# due to space in folder name...
+	findcr=`find -H $userhome/.mozilla/firefox/Crash\ Reports/pending/ -mindepth 1 -maxdepth 1 -type f 2> /dev/null`
+	for cr in $findcr; do
+		rm -f "$cr"
+	done
+	rm -f "$userhome/.mozilla/firefox/*/sessionstore*.js"
+	if [ -e "$userhome/.mozilla/firefox/Crash Reports/crashreporter.ini" ]; then
+		test=`grep "^SubmitReport=0" "$userhome/.mozilla/firefox/Crash Reports/crashreporter.ini"`
+		if [ "$test" = "" ]; then
+			warns=$warns"WARNING: user $user has Firefox Crash Reports enabled\n"
+		fi
+	fi
+
+	# Vacuum all sqlite databases in home - frees space and improves security
+	f=`find $userhome -type f -name '*.sqlite' 2> /dev/null`
+	if [ "$f" != "" ]; then
+		for fline in $f; do
+			# vacuum $fline if not in a kscrubber backup folder
+			test="${fline/kscrubber-/-}"
+			if [ "${#test}" = "${#fline}" ]; then
+				backup "$fline"
+				log "VACUUM: $fline" "verb"
+				if (( optsim != 1 )); then
+					sqlite3 "$fline" 'VACUUM;'
+				fi
+			fi
+		done
+	fi
+}
+
+forget_kde()
+# Purpose: forget misc local kde data
+# Returns: 0:success 1:fail
+{
+	user="$1"
+	if [ "$user" = "root" ]; then
+		userhome="/root"
+	else
+		userhome="/home/$user"
+	fi
+
+	log
+	log "Cleaning files for user $user..."
+
+	# .kde, .kde3,.kde4
+	kde=".kde"
+	kde0=0
+	kde3=0
+	kde4=0
+	if [ -d "$userhome/.kde3" ]; then
+		kde3=1
+		kde=".kde3"
+	fi
+	if [ -d "$userhome/.kde4" ]; then
+		kde4=1
+		kde=".kde4"
+	fi
+	if [ -d "$userhome/.kde" ]; then
+		kde0=1
+		kde=".kde"
+	fi
+	if (( kde0 + kde3 + kde4 > 1 )); then
+		warns=$warns"WARNING: user $user has multiple .kde folders - only $kde cleaned\n"
+	fi
+
+	# var/tmp and /tmp/kde-*
+	kde3running=`ps -A | grep " kdesktop"`
+	kde4running=`ps -A | grep kded4`
+	if [ "$kde3running" = "" ] && [ "$kde4running" = "" ]; then
+		# KDE apps aren't running, so remove /var/tmp/kdecache-*/*
+		# preserve /var/tmp/kdecache-$user/favicons
+		anycommand mv -f /var/tmp/kdecache-$user/favicons /var/tmp/kdecache-$user-favicons-kscrubber.tmp
+		rm -rf "/var/tmp/kdecache-$user/*"
+		anycommand mv -f /var/tmp/kdecache-$user-favicons-kscrubber.tmp /var/tmp/kdecache-$user/favicons
+	fi
+	rm -rf "/tmp/kde-$user/*"
+	rm -rf "$userhome/.thumbnails/*"
+	rm -f "$userhome/.bash_history"
+	rm -f "$userhome/.recently-used*"
+	rm -f "$userhome/.xsession-errors"
+	rm -f "$userhome/$kde/share/apps/RecentDocuments/.[a-zA-Z0-9]*"
+	rm -f "$userhome/$kde/share/apps/RecentDocuments/*"
+	
+	# thumbnails
+	rm -Rf $HOME/.thumbnails
+	mkdir $HOME/.thumbnails
+
+	# misc
+	rm -f $HOME/.xsession-errors*
+	
+	# kdeglobals
+	edit 's/\(^History Items\[\$e\]=\).*/\1/' $userhome/$kde/share/config/kdeglobals
+	edit 's/\(^Recent URLs\[\$e\]=\).*/\1/' $userhome/$kde/share/config/kdeglobals
+	
+	# plasma TODO check this out carefully
+	#if [ ! -h $userhome/$kde/share/config/plasma-desktop-appletsrc ]; then
+	#	edit 's/\(^label[0-9]*=\)file\:\/\/.*/\1/' $userhome/$kde/share/config/plasma-desktop-appletsrc
+	#fi
+	
+	#rm -rf "$userhome/.java/deployment/cache/.[a-zA-Z0-9]*"
+	#rm -rf "$userhome/.java/deployment/cache/*"
+}
+
+forget_vlc()
+# Purpose: forget vlc media player
+# Returns: 0:success 1:fail
+{
+	local ConfFile; 
+	ConfFile="$HOME/.config/vlc/vlc-qt-interface.conf"
+	#media library
+	rm -f $HOME/.local/share/vlc/ml.xspf
+	# vlc mru list	
+	ini_set_value "$ConfFile" 'RecentsMRL' 'list' ''
+	
+	#edit s'/^\(filedialog-path=\).*/\1/' $userhome/.config/vlc/vlc-qt-interface.conf
+	#edit s'/^\(list=\).*/\1/' $userhome/.config/vlc/vlc-qt-interface.conf
+}
+
+forget_clementine()
+# Purpose: forget clementine music player
+# Returns: 0:success 1:fail
+{
+	echo "forget_clementine not yet implemented"
+}
+
+forget_libreoffice()
+# Purpose: forget clementine music player
+# Returns: 0:success 1:fail
+{
+	echo "forget_libreoffice not yet implemented"
+	rm -f "$userhome/.openoffice.org/3/user/registry/data/org/openoffice/Office/Histories.xcu"
+}
+
+forget_speedcrunch()
+# Purpose: forget speedcrunch calculator
+# Returns: 0:success 1:fail
+{
+# speedcrunch
+	edit s'/^History\\.*//' $userhome/.config/SpeedCrunch/SpeedCrunch.conf
+	edit s'/^Variables\\.*//' $userhome/.config/SpeedCrunch/SpeedCrunch.conf
+}
+
+forget_filelight()
+# Purpose: forget filelight disk space map history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	local Config; local ed1; local ed2; local ed3	
+	Config="$HOME/.kde/share/config/filelightrc"
+	ed1=0; ed2=0; ed3=0
+	
+	edit_backup "$Config"
+	edit_file 's/^File.*\[\$e\]=.*//' "$Config"; ed1=$?
+	#edit_file 's/^Name.*\[\$e\]=.*//' "$Config"; ed2=$?
+	#edit_file 's/^comboHistory\[\$e\]=.*//' "$Config"; ed3=$?
+	
+	if [ ed1 ] && [ ed2 ] && [ ed3 ]; then
+		edit_rm_backup "$Config"; return $?
+	else
+		edit_restore_backup "$Config"; return 1
+	fi
+	#edit 's/^File.*\[\$e\]=.*//' "$Config"
+	#edit 's/^Name.*\[\$e\]=.*//' "$Config"
+	#edit 's/^comboHistory\[\$e\]=.*//' "$Config"
+}
+
+forget_k3b()
+# Purpose: forget k3b cd burner history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	exit
+	edit 's/\(^Recent Files\[\$e\]=\).*/\1/' $HOME/$kde/share/config/k3brc
+	edit 's/^File.*\[\$e\]=.*//' $HOME/$kde/share/config/k3brc
+	edit 's/^Name.*\[\$e\]=.*//' $HOME/$kde/share/config/k3brc
+	edit 's/\(^image path\[\$e\]=\).*/\1/' $HOME/$kde/share/config/k3brc
+	edit 's/\(^last written image\[\$e\]=\).*/\1/' $HOME/$kde/share/config/k3brc
+	edit 's/\(^recent images\[\$e\]=\).*/\1/' $HOME/$kde/share/config/k3brc
+	rm -f "$HOME/$kde/share/apps/k3b/lastlog*"
+	rm -rf "$HOME/$kde/share/apps/k3b/temp/.[a-zA-Z0-9]*"
+	rm -rf "$HOME/$kde/share/apps/k3b/temp/*"
+}
+
+forget_ark()
+# Purpose: forget ark archive utility history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	exit
+	edit 's/^File.*\[\$e\]=.*//' $HOME/$kde/share/config/arkrc
+	edit 's/^Name.*\[\$e\]=.*//' $HOME/$kde/share/config/arkrc
+}
+
+forget_gwenview()
+# Purpose: forget gwenview image viewer history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	exit
+	edit 's/\(^Recent Files\[\$e\]=\).*/\1/' $HOME/$kde/share/config/gwenviewrc
+	rm -f "$HOME/$kde/share/apps/gwenview/recenturls/*"
+	rm -rf "$HOME/$kde/share/apps/gwenview/recentfolders/*"
+}
+
+forget_okular()
+# Purpose: forget okular document viewer history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	exit
+	edit 's/^File.*\[\$e\]=.*//' $HOME/$kde/share/config/okularrc
+	edit 's/^Name.*\[\$e\]=.*//' $HOME/$kde/share/config/okularrc
+	rm -f "$HOME/$kde/share/apps/okular/docdata/*"
+}
+
+forget_kename()
+# Purpose: forget krename history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	# krename
+	edit s'/^\(default\[\$e\]=\).*/\1/' $userhome/$kde/share/config/krenamerc
+	edit s'/^\(Recent Files\[\$e\]=\).*/\1/' $userhome/$kde/share/config/krenamerc
+	edit 's/^CompletionList=.*/CompletionList=/' $userhome/$kde/share/config/krenamerc
+	edit 's/^HistoryList=.*/HistoryList=/' $userhome/$kde/share/config/krenamerc
+}
+forget_krunner()
+# Purpose: forget krunner history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	edit 's/^PastQueries=.*/PastQueries=/' $userhome/$kde/share/config/krunnerrc
+	edit 's/^LaunchCounts=.*/LaunchCounts=/' $userhome/$kde/share/config/krunnerrc
+	if [ "$user" != "root" ];then
+		log "COMMAND: su $user -c \"qdbus org.kde.krunner /App org.kde.krunner.App.clearHistory\"" "verb"
+		if (( optsim != 1 )); then
+			su $user -c "qdbus org.kde.krunner /App org.kde.krunner.App.clearHistory" > /dev/null 2> /dev/null
+		fi
+	fi
+}
+
+forget_klipper()
+# Purpose: forget clipboard contents
+# Returns: 0:success 1:fail
+{
+	qdbus org.kde.klipper /klipper setClipboardContents ' '
+	qdbus org.kde.klipper /klipper clearClipboardHistory
+	
+		rm -f "$userhome/$kde/share/apps/klipper/history*"
+		
+		exit
+	if [ "$user" != "root" ]; then
+		log "COMMAND: su $user -c \"qdbus org.kde.klipper /klipper org.kde.klipper.klipper.clearClipboardHistory\"" "verb"
+		if (( optsim != 1 )); then
+			su $user -c "qdbus org.kde.klipper /klipper org.kde.klipper.klipper.clearClipboardHistory" > /dev/null 2> /dev/null
+		fi
+	fi
+	if [ -e $userhome/$kde/share/config/klipperrc ] && [ "$user" != "root" ]; then
+		test=`grep "KeepClipboardContents=false" $userhome/$kde/share/config/klipperrc`
+		if [ "$test" = "" ]; then
+			warns=$warns"WARNING: user $user klipper set to save history on exit\n"
+		fi
+	fi
+}
+
+forget_kate()
+# Purpose: forget kate text editor history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	echo "forget_kate disabled - uncomment if you really want to!" #!!!
+	
+	edit 's/\(^Recent Files\[\$e\]=\).*/\1/' $HOME/$kde/share/config/katerc
+	edit 's/\(^Replacement Text History=\).*/\1/' $HOME/$kde/share/config/katerc
+	edit 's/\(^Search Pattern History=\).*/\1/' $HOME/$kde/share/config/katerc
+	edit 's/\(^LastSearchFiles=\).*/\1*/' $HOME/$kde/share/config/katerc
+	edit 's/\(^LastSearchItems=\).*/\1/' $HOME/$kde/share/config/katerc
+	edit 's/\(^LastSearchPaths=\).*/\1/' $HOME/$kde/share/config/katerc
+	rm -f "$HOME/$kde/share/apps/kate/metainfos"
+	
+	return 0
+}
+
+forget_kmail()
+# Purpose: forget kmail email client history
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	echo "forget_kmail disabled - uncomment if you really want to!" #!!!	
+
+	edit 's/\(^folders\[\$e\]=\).*/\1/' $userhome/$kde/share/config/kmailrc
+	edit 's/\(^Recent Addresses=\).*/\1/' $userhome/$kde/share/config/kmailrc
+	edit 's/\(^Recent Files\[\$e\]=\).*/\1/' $userhome/$kde/share/config/kmailrc
+	edit 's/\(^Recent Files\[\$e\]=\).*/\1/' $userhome/$kde/share/config/kaddressbookrc
+	
+	return 0
+}
+
+forget_trash()
+# Purpose: forget trash
+# Returns: 0:success 1:fail
+# Notes:   based on kscrubber by IgnorantGuru
+{
+	rm -rf "$HOME/.local/share/Trash/files/.[a-zA-Z0-9]*"
+	rm -rf "$HOME/.local/share/Trash/info/.[a-zA-Z0-9]*"
+	rm -rf "$HOME/.local/share/Trash/files/*"
+	rm -rf "$HOME/.local/share/Trash/info/*"
+	
+	return 0
+}
+
+abend_if_root
+#forget_klipper
+#forget_kde
+#forget_vlc
+#forget_gwenview
+#forget_libreoffice
+#forget_clementine
+#forget_firefox
+forget_filelight
+
+

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Replace skel
+echo "Replacing /etc/skel"
+sudo rm -R /etc/skel/*
+sudo rm -R /etc/skel/.*
+sudo cp -R /home/attic/nr-to-sch/current-skel/* /etc/skel
+sudo cp -R /home/attic/nr-to-sch/current-skel/.* /etc/skel
+sudo chmod -R a+r /etc/skel 
