@@ -1,0 +1,111 @@
+# definitely don't run this snippets file!
+exit
+
+#  Check number of command line arguments-------------------------------------
+[ $# -lt 1 ] && { echo -e "\n\tUsage:  ${0##/*/} File\n"; exit 1; }
+
+# getting names
+basename=${pathname##*/}
+dirname=${pathname%/*}
+filename=${basename%%.*}
+lastextension=${basename##*.}
+allextensions=${basename#*.}
+
+# check for signed integer-----------------------------------------------------
+if [[ $number =~ ^[+-]?[0-9]+$ ]] ; then
+	echo -e "match found : (signed) integer\n"
+fi
+
+# make tempfile----------------------------------------------------------------
+TMPFILE=$( mktemp /tmp/example.XXXXXXXXXX ) || exit 1
+rm --force $TMPFILE
+
+# securely create tempfile-----------------------------------------------------
+TMPDIR=${TMPDIR:-/tmp}                          # defaults to /tmp if unset 
+
+# creates a particular temporary directory inside $TMPDIR.
+TEMPORARY_DIR=$(mktemp -d "$TMPDIR/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") || \
+    { echo "ERROR creating a temporary file"; exit 1; }
+
+# When the program exits, it tries to remove the temporary folder.
+# This code is executed even if the process receives a signal 1,2,3 or 15.
+trap '[ "$TEMPORARY_DIR" ] && rm --recursive --force "$TEMPORARY_DIR"' 0
+
+touch $TEMPORARY_DIR/tempfile                   # new tempfile inside folder
+
+#  cleanup temporary file in case of a keyboard interrupt (SIGINT)-------------  
+#  or a termination signal (SIGTERM)-------------------------------------------
+
+function cleanup_temp 
+{
+  [ -e $tmpfile ] && rm --force $tmpfile
+  exit 0
+} 
+
+trap  cleanup_temp  SIGHUP SIGINT SIGPIPE SIGTERM 
+
+tmpfile=$(mktemp) || { echo "$0: creation of temporary file failed!"; exit 1; }
+
+rm --force $tmpfile # use tmpfile
+
+# timestamp : YYYYMMDD-hhmmss------------------------------------------------
+timestamp=$(date +"%Y%m%d-%H%M%S")   
+
+# usage and getopts-----------------------------------------------------------
+function usage ()
+{
+	cat <<- EOT
+
+  Usage :  ${0##/*/} [options] [--] 
+
+  Options: 
+  -h|help       Display this message
+  -v|version    Display script version
+
+	EOT
+}    
+
+while getopts ":hv" opt
+do
+  case $opt in
+
+    h|help     )  usage; exit 0   ;;
+
+    v|version  )  echo "$0 -- Version $ScriptVersion"; exit 0   ;;
+
+    \? )  echo -e "\n  Option does not exist : $OPTARG\n"
+          usage; exit 1   ;;
+
+  esac    
+done
+shift $(($OPTIND-1))
+
+# use file descriptor and read-------------------------------------
+infilename=""   # input filename
+
+exec 3<"$infilename"
+if [ $? -ne 0 ] ; then
+  echo -e "Could not link file descriptor with file '$infilename'\n"
+  exit 1
+fi
+
+while read line <&3 ; do
+  echo -e "$line"
+done
+
+exec  3<&-  # close file descriptor
+
+# use file descriptor and write-------------------------------------
+outfilename=""        # output filename
+
+exec 4>"$outfilename"
+if [ $? -ne 0 ] ; then
+  echo -e "Could not link file descriptor with file '$outfilename'\n"
+  exit 1
+fi
+
+echo -e "text"  >&4
+
+exec  4>&-          # close file descriptor
+
+

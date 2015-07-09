@@ -1,0 +1,66 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-magic-num-find
+# Created:   17/10/2014
+# Purpose:   Search for instance of specified magic-num in specified
+#            directory. If found, place filespec and linenumber on stdout.
+# See also:  sch-magic-num-generate
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+{
+cat << EOF
+NAME
+       sch-magic-num-find - Search for instance of 5-digit magic-num in specified
+	   directory. If found, place filespec and linenumber on stdout. Search is
+	   non-recursive at present as that seems more convenient.
+
+SYNOPSIS
+       sch-magic-num [5-DIGIT-NUM] [DIRECTORY]
+
+EXIT STATUS
+       0      If file containing magic number found.
+       1      If no such file found.
+       stdout <magic-num><space><filespec> if file found, otherwise null
+
+USAGE
+
+EOF
+}
+
+MagicNum="$1";
+DirSpec="$2";
+FileSpec=''; Problem=''; LineNum=''
+
+[ "$MagicNum" != '' ] || { echo "missing argument(s)"; exit 1; }
+[ "$DirSpec" != '' ] || { echo "missing argument(s)"; exit 1; }
+Problem=$(sch-file-exists -s "$DirSpec" -rd)
+[ "$?" = 0 ] || { echo "folder ($DirSpec) cannot be used - it is $Problem"; exit 1; }
+# TODO: validate that MagicNum is indeed a 5-digit number
+
+FileSpec="$(grep --line-number $MagicNum /home/attic/sch-dev/scripts/sch* |head -n1 |cut -d: -f1)"
+LineNum="$(grep --line-number $MagicNum /home/attic/sch-dev/scripts/sch* |head -n1 |cut -d: -f2)"
+echo "$LineNum $FileSpec"
+[ "$LineNum" != '' ] || exit 1
+exit 0
+
+
+
+

@@ -1,0 +1,40 @@
+#!/bin/dash
+
+# Synchronize attic version of schooner with schooner system under build.
+
+# Note that sch-sync-to-sys cannot include sch-common in a "source" command
+# because sch-sync-to-sys must be copied into /bin before it is run. So 
+# it has its own versions of some variables and functions.
+
+readonly User="$(whoami)"
+readonly Script="$(basename $0)"
+readonly LogFile="$HOME/sch-scripts-log.txt"
+readonly SchoonerPath="/usr/share/schooner"
+readonly Attic="/home/attic/sch-dev"
+readonly Abort=9
+
+write-log() # $1:log-entry $2:$LINENO return:0
+{ 
+	echo "$Script (line $2): $1" >> "$LogFile"
+}
+
+abort() # $1:abort-message $2:$LINENO return:always exits
+{
+	echo "$Script (line $2) aborted: $1"
+	echo "$Script (line $2) aborted: $1" >> "$LogFile"
+	exit $Abort
+}
+
+
+if [[ $User != "root" ]]
+then
+	abort "cannot run because user is $User, not root" $LINENO
+fi
+
+# synchronize scripts with /bin
+rm /usr/bin/sch-* 					|| abort "command failed" $LINENO
+cp $Attic/scripts/sch-* /usr/bin 			|| abort "command failed" $LINENO
+chown root:root /usr/bin/sch-*			|| abort "command failed" $LINENO
+chmod a-rw,u+rw,a+rx /usr/bin/sch-* 		|| abort "command failed" $LINENO
+
+write-log "$SchoonerPath synchronized with $AtticPath" $LINENO

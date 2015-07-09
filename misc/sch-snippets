@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# create tempfile in $HOME
+
+RNDM=$RANDOM
+TEMPFILE=$HOME/.schooner/tmp/sch-tmp-$RNDM
+echo "dd" > $TEMPFILE
+
+#user input
+echo "Query to user?"
+select yn in "Yes" "No"; do
+    case $yn in
+        Yes ) something; break;;
+        No ) somethingelse; exit;;
+    esac
+done

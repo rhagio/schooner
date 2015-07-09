@@ -1,0 +1,18 @@
+# !/bin/ bash
+
+#mark ~/.kde/share/config/plasma-desktop-appletsrc as non-immutable by removing [i] from line 1
+
+CONFIGFILE=~/.kde/share/config/plasma-desktop-appletsrc
+TEMPFILE=$(mktemp)
+
+
+if [ $(head -n 1 $CONFIGFILE) = "[i]" ]
+then
+  #CONFIGFILE is marked immutable so remove the mark
+  tail -n +2 $CONFIGFILE > $TEMPFILE
+  mv $TEMPFILE $CONFIGFILE  
+  exit 0
+else
+  #CONFIGFILE not marked immutable so do nothing
+  exit 1
+fi

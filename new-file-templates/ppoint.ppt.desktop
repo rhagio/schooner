@@ -1,0 +1,7 @@
+[Desktop Entry]
+Comment=Enter Excel filename:
+Icon=application-vnd.ms-powerpoint
+Name[en_GB]=PowerPoint 2000->03/XP ...
+Name=MS PowerPoint 2000->03/XP ...
+Type=Link
+URL[$e]=.source/ppoint.ppt

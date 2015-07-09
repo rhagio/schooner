@@ -3,7 +3,7 @@
 # Created:   22/09/2014
 # Author:    Bill Cane
 # Email:     schoonerdemo@gmail.com
-# Copyright: © 
+# Copyright: © Bill Cane
 #
 # Licence: This program is free software: you can redistribute it
 # and/or modify it under the terms of the GNU General Public License
@@ -17,7 +17,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 . /usr/bin/sch-includes
 
 strip_netrunner()
@@ -86,6 +85,7 @@ add_misc_packages()
 	apt-get --yes install	kshisen  || abend '98986'
 	apt-get --yes install	kfourinline  || abend '90823'
 	apt-get --yes install	ksudoku  || abend '15645'
+	#apt-get --yes install	gnome-hearts || abend '09898' interface very un-kde
 	apt-get --yes install	kapman   || abend '15645'
 	apt-get --yes install	kblocks  || abend '78653'
 	apt-get --yes install	kdgames-card-data-xtra  || abend '89768'
@@ -106,7 +106,9 @@ add_misc_packages()
 	apt-get --yes install	klickety || abend '89654'
 	apt-get --yes install	klines || abend '89467'
 	apt-get --yes install	palapeli || abend '09897'
-	apt-get --yes install	ktnef  || abend '09097' # microsoft srvr mail format viewer - okular can't do tnef	
+	apt-get --yes install	mat || abend '87962' #Metadata Anonymisation Toolkit
+
+	apt-get --yes install	 ktnef  || abend '09097' # microsoft srvr mail format viewer - okular can't do tnef	
 	
 	# accessibility
 	apt-get --yes install	fonts-opendyslexic  || abend '90856'
@@ -161,20 +163,22 @@ add_misc_packages()
 	
 	# misc
 	
-	apt-get --yes install	wkhtmltopdf  || abend '99867' #convert html to pdf - for service menus
-	apt-get --yes install	jpegoptim  || abend '00967' #jpeg optimiser
-	#apt-get --yes install	pngquant  || abend '88756' #png optimiser - currently crashes - debian bug #742451
-	apt-get --yes install	pngnq  || abend '35422' #png optimiser - alternative to pngquant	
+	#apt-get --yes install	everpad || abend '93440'
+	
 	apt-get --yes install	notify-osd || abend '34593' #dolphin checksum service menu needs it
 	# TODO could these and the libnotify4 package have overlaps/redundancy?
+	#apt-get --yes install	kwrite || abend '63540'
 	apt-get --yes install	filelight || abend '04522'
 	apt-get --yes install	speedcrunch || abend '87345'
 	apt-get --yes install	sqlite3 || abend '82156'	
 	apt-get --yes install	plasma-addons || abend '46721'	
 	apt-get --yes install	kde-service-menu-fuseiso || abend '31319'	
-	apt-get --yes install	kde-service-menu-kim4 || abend '30064'#notify-osd required by dolphin md5 service menu
+	#apt-get --yes install	kde-service-menu-kim4 || abend '30064'#notify-osd required by dolphin md5 service menu
 	#apt-get --yes install	libmygpo-qt1 || abend '15691'
-	apt-get --yes install	xclip || abend '92641'
+	#apt-get --yes install	kgpg || abend '01019'
+	#apt-get --yes install	apg || abend '27324'
+	#apt-get --yes install	xclip || abend '92641'
+	apt-get --yes install	kompare || abend '09098'
 	apt-get --yes install	kde-config-cddb || abend '32346'
 	#apt-get --yes install	adobe-flash-properties-kde || abend '82693'# removed as has dependencies that can't be satisfied
 	apt-get --yes install	ktouch || abend '85028'
@@ -184,15 +188,7 @@ add_misc_packages()
 	apt-get --yes install	qdbus-qt5 || abend '60783'	
 	apt-get --yes install	kdeconnect || abend '91644'	
 	apt-get --yes install	choqok || abend '76746'
-	apt-get --yes install	krename || abend '23133'
-	apt-get --yes install	declarative-plasmoids || abend '93355'
-	apt-get --yes install	thunderbird-plasma || abend '93355'
-	apt-get --yes install	plasma-runners-addons || abend '91644'	
-	
-	#imagemagick graphicsmagick and helpers
-	apt-get --yes install	graphicsmagick  || abend '90785'
-	apt-get --yes install	dcraw || abend '09895' 
-	apt-get --yes install	html2ps || abend '38746' 	
+	apt-get --yes install	krename || abend '23133'	
 	
 	# gimp helpers
 	apt-get --yes install	gimp-plugin-registry || abend '09897'
@@ -221,17 +217,29 @@ add_misc_packages()
 	apt-get --yes install	python-mutagen || abend '32936'
 	apt-get --yes install	libimage-exiftool-perl || abend '37453'	
 	# TODO check status of libvw-1.2-4 recommended for recoll
-	pip install 		epub || abend '80230'
-	pip install		rarfile || abend '13547'
-	pip install		icalendar || abend '21092'
+	pip install 			epub || abend '80230'
+	pip install			rarfile || abend '13547'
+	pip install			icalendar || abend '21092'
 
 	# Security
+	#apt-get --yes install	clamav || abend '10605'
+	#apt-get --yes install	clamav-daemon || abend '18468'
+	#apt-get --yes install	clamav-unofficial-sigs || abend '74493'
+	#apt-get --yes install	libclamunrar6 || abend '10304'
+	#apt-get --yes install	spamassassin || abend '05991'
+	#apt-get --yes install	rkhunter || abend '37626'
+	#apt-get --yes install	aide || abend '89584'
 	apt-get --yes install	ufw || abend '99044'
 	apt-get --yes install	ufw-kde || abend '92425'
-	apt-get --yes install	apg || abend '34234' #advanced password generator
-
-	# fonts
-	apt-get --yes install	fonts-linuxlibertine || abend '90876'
+	
+	#apt-get --yes install	plasma-widget-searchmoid || abend '65746'
+	
+	apt-get --yes install	declarative-plasmoids || abend '93355'
+	apt-get --yes install	thunderbird-plasma || abend '93355'
+	apt-get --yes install	plasma-runners-addons || abend '91644'
+	#apt-get --yes install	plasma-widget-milou || abend '88504'
+	#apt-get --yes install	plasma-widget-message-indicator || abend '88639'
+	#apt-get --yes install	plasma-widget-translatoid || abend '44324'
 
 	apt-get-update
 }
@@ -246,30 +254,32 @@ add_dev_packages()
 	#may need more kate packages
 	apt-get --yes install libghc-highlighting-kate-dev || abend '11962'
 	apt-get --yes install powertop || abend '68004'
-	#apt-get --yes install bootchart || abend '60034'
-	#apt-get --yes install pybootchartgui || abend '71788'
-	#apt-get --yes install vim || abend '55075'
-	#apt-get --yes install vim-gui-common || abend '67816'
+	apt-get --yes install nmap || abend '90607'
+	apt-get --yes install zenmap || abend '75671'
+	apt-get --yes install bootchart || abend '60034'
+	apt-get --yes install pybootchartgui || abend '71788'
+	apt-get --yes install vim || abend '55075'
+	apt-get --yes install vim-gui-common || abend '67816'
 	apt-get --yes install bashdb || abend '77232'
 	# devscripts to get checkbashisms bash portability checker
-	#apt-get --yes install devscripts || abend '17984'
+	apt-get --yes install devscripts || abend '17984'
 	apt-get --yes install plasmate || abend '28716'
 	# debtree for visualizing deb dependencies
-	#apt-get --yes install debtree		  || abend '61840'
+	apt-get --yes install debtree		  || abend '61840'
 
 	#qt4-dev-tools for qdbusviewer
 	apt-get --yes install qt4-dev-tools		  || abend '66145'
 
 	# kdevelop
-	#apt-get --yes install kdevelop || abend '47903'
-	#apt-get --yes install kapptemplate || abend '44563'
+	apt-get --yes install kdevelop || abend '47903'
+	apt-get --yes install kapptemplate || abend '44563'
 	apt-get --yes install git || abend '57566'
 
 	# cabal installer for haskell - need it for shellcheck
-	#apt-get --yes install cabal-install || abend '42835'
-	#apt-get update || abend '77586'
-	#cabal update || abend '09718'
-	#cabal install shellcheck || abend '18466'
+	apt-get --yes install cabal-install || abend '42835'
+	apt-get update || abend '77586'
+	cabal update || abend '09718'
+	cabal install shellcheck || abend '18466'
 }
 
 add_remastersys()
@@ -372,6 +382,30 @@ create_usr_share_schooner()
 	cp -Rf /home/schdev/base-files/schooner-filetree /usr/share/schooner || abend '09425'
 }
 
+
+
+
+# 	# Maldet (Linux Malware detect)
+# 	# has own installer
+# 	chmod u+x $BFILES/maldet/maldetect-1.4.2/install.sh
+# 	$BFILES/maldet/maldetect-1.4.2/install.sh || abend '92442'
+# 	cp -f $BFILES/maldet/conf.maldet /usr/local/maldetect/conf.maldet  || abend '05147'
+# 	cp -f $BFILES/maldet/conf.maldet /usr/local/maldetect/conf.maldet  || abend '59500'
+# 	cp -f $BFILES/maldet/ignore_paths /usr/local/maldetect/ignore_paths || abend '34173'
+
+	# ===== AIDE
+	# aide (will need to create first dbase when system all installed)
+	#cp -f $BFILES/aide/aide.conf \
+	#	/etc/aide/aide.conf || abend '70693'
+
+	# ===== ClamAV
+	# unsure where to run this
+	# set up clam
+	#clamav unofficial sigs initial database update
+	#clamav-unofficial-sigs  || abend '45218'
+
+
+
 create_skel()
 # Purpose: create user skeleton on schooner system
 # Returns: 0:success 1:fail
@@ -383,6 +417,8 @@ create_skel()
 		sudo chmod -R a+r /etc/skel
 	fi
 }
+
+
 
 # Need schooner directory first because error log will be written there
 create_usr_share_schooner

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=MS Word 2000->03/XP ...
+Comment=Enter Word document name:
+Icon=application-msword
+Name[en_GB]=MS Word 2000->03/XP ...
+
+Type=Link
+URL[$e]=.source/msword.doc

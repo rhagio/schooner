@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Script to be run by Setup after system is installed
+
+# Add libdvdcss2 from http://pkgs.org/debian-ubuntu/videolan/
+sudo add-apt-repository --yes "deb ftp://ftp.videolan.org/pub/debian/stable ./"
+sudo apt-get update
+sudo apt-get --yes install libdvdcss2
+
+# Download Google earth
+wget http://dl.google.com/dl/earth/client/current/google-earth-stable_current_i386.deb
+sudo gdebi google-earth-stable_current_i386.deb
+
+
+# TODO will remove all dev tools and ppas here 

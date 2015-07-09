@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "TEST: is ssh installed?"
+netstat -ntulp
+
+echo "TEST: which servers are running (eg ssh)?"
+dpkg -l | grep ssh
+
+echo "TEST: which servers are running?"
+ps ax
+
+echo "TEST: kernel entropy pool (4,096 bits=fully-topped, 200=running badly low)?"
+cat /proc/sys/kernel/random/entropy_avail

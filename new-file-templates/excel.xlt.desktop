@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=MS Excel 2000->03/XP ...
+Comment=Enter Excel filename:
+Icon=application-vnd.ms-excel
+Name[en_GB]=MS Excel 2000->03/XP ...
+Type=Link
+URL[$e]=.source/excel.xlt

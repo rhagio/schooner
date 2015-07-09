@@ -1,0 +1,6 @@
+#!/bin/dash
+sch-ini -a 'set-value' \
+		-f '/home/crumple/.config/vlc/vlc-qt-interface.conf' \
+		-s 'RecentsMRL' \
+		-p 'list' \
+		-v 'drlbble'

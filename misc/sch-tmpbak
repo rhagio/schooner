@@ -1,0 +1,143 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-tbak
+# Created:   06/10/2014
+# Purpose:   Get a temp backup directory: part of a set of scripts to 
+#            create and manage a temporary backup directory which can be
+#            used to make editing of several files reasonably atomic.
+# See also:  sch-tbak-add 
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-tbak -  Part of a set of three scripts to create and manage 
+       a temporary backup directory which can be used to make editing
+       several files reasonably atomic. 
+
+SYNOPSIS
+       sch-tbak [OPTION]... [FILE]...
+
+DESCRIPTION
+
+       -d get new temp directory
+            
+       -r rollback
+ 
+       -c cleanup
+       
+       -d, -r and -c are mutually exclusive
+ 
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       stdout path of temp directory, when -d option used, else null
+       
+USAGE
+       TmpDir=$(sch-tbak -d)     # gets a new temp directory
+       sch-tbak-add "$TmpDir" "/full/path/to/myfile"   # add a file
+       sch-tbak-add "$TmpDir" "/full/path/to/myfile2"   # add another file
+       < edit myfile and myfile2 >
+       sch-tbak -r  # rollback if necessary
+       sch-tbak -c  # cleanup when completed
+  
+EOF
+}
+
+rollback()
+# Purpose: Copy all files from the temp dir to overwrite the
+#          current files
+# Args:    None
+# Returns: 0:success 1:fail
+{
+	# 
+}
+
+cleanup()
+# Purpose: Delete the temp dir along with all the files it contains
+# Args:    None
+# Returns: 0:success 1:fail
+{
+	# 
+}
+
+get_new_temp()
+# Purpose: Create new temporary backup directory
+# Args:    None
+# Returns: exit with status 0 or 1:fail
+# StdOut:  filespec of new temp directory
+{
+	local TmpDir; TmpDir="$(mktemp -d)"
+	if [ "$?" = 0 ]; then
+		echo "$TmpDir"  # put it on stdout
+		exit 0 # exit (not return) so nothing else gets put on stdout
+	else
+		return 1
+	fi		
+}
+
+local GetNewTmpDir; local Rollback; local Cleanup
+# reversing the usual logic treating 1=true, so Can
+# do arithmetic later
+GetNewTmpDir=0; Rollback=0; Cleanup=0
+
+while getopts "dr:c:" Option
+do
+	case "$Option" in Option		
+		d ) GetNewTmpDir=1 ;;
+		r ) Rollback=1; TmpDir="$OPTARG" ;;
+		c ) Cleanup=1; TmpDir="$OPTARG" ;; 
+		* ) usage; exit 1 ;;			   
+	esac
+done
+
+if [ $(( GetNewTmpDir + Rollback + Cleanup )) -ge 1 ]; then
+	echo "-d -r and -c options are mutually exclusive"; usage; exit 1
+fi
+
+if [ "$Rollback" = 1 ] && [ "$TmpDir" != "" ]; then
+	echo "missing arg"; usage; exit 1
+fi
+
+if [ "$Cleanup" = 1 ] && [ "$TmpDir" != "" ]; then
+	echo "missing arg"; usage; exit 1
+fi
+
+[ "$GetNewTmpDir" = 1 ] && get_new_temp
+[ "$Rollback" = 1 ] && rollback $TmpDir
+[ "$Cleanup" = 1 ] && cleanup $TmpDir
+
+	
+	
+
+
+
+
+	
+	
+
+
+
+	
+
+

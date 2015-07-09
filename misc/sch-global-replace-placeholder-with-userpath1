@@ -1,0 +1,6 @@
+#!/bin/bash 
+
+username=$(whoami)
+userhomedir="/home/$username"
+placeholder="/home/schdev"	
+grep -rl "$placeholder" $userhomedir |  xargs sed -i "s/$placeholder/\/home\/$username/g" #clumsy but can't make work without hard-coding!

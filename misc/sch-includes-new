@@ -1,0 +1,497 @@
+#!/bin/dash 
+#keep shebang above here just to trigger syntax highlighting
+#=======================================================================
+# File:      sch-includes
+# Created:   03/10/2014
+# Purpose:   Global variables and functions to be included in scripts
+# Note;      In this file position of functions is sometimes important!
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.comm
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+readonly HostName="$(hostname)" 
+readonly Script="$(basename $0)" 
+readonly GlobalConf='/usr/share/schooner/global-conf'
+readonly UserConf="$HOME/.schooner/user-conf"
+readonly ErrLog="$HOME/.schooner/error-log"
+readonly SchDev='/home/attic/sch-dev'
+
+prompt_y_n()
+# Purpose: allow user to select yes/no response to message printed to terminal
+# Args:    $1:message
+# Returns: 0:yes 1:no
+{
+	local Answer; Answer=""
+	while [ "$Answer" != "y" ] && [ "$Answer" != "n" ]; do
+		echo "$1: type y or n:"
+		read $Answer
+	done 
+	if [ "$Answer" = "y" ]; then
+		exit 0
+	else
+		exit 1
+	fi
+}
+
+log_error()
+# Purpose: write entry to error log
+# Args:    $1:GrepNo $2:Message
+# Returns: 0:success 1:fail
+{
+	local Log; Log="$ErrLog"
+	local Date; Date=$(date "+%m/%d/%y-%H:%M:%S")
+	[ -f "$Log" ] || echo > "$Log"
+	[ -f "$Log" ] || { echo "Error log $Log does not exist"; exit 9; }
+	[ -w "$Log" ] || { echo "Error log $Log is not writable"; exit 9; }
+	echo "$Date: $Script: GrepNo $1: $2" >> "$Log"
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:GrepNo $2:error-message ($2 is optional)
+# Returns: never returns - always exits with 9
+{
+	local GrepNo; GrepNo=$1
+	local Message; Message=$2
+	[ "$Message" != "" ] || Message="Command failed"
+	log_error "$GrepNo" "Aborted: $Message"
+	echo "$Script aborted at line $GrepNo: $Message"
+	exit 9
+}
+
+ini_sect_exists()
+# Purpose: determine if specifies [section header] exists in ini file
+# Args:    $1:filespec $2:section
+# Returns: 0:success 1:fail
+{
+	local FileSpec; FileSpec=$1;
+	local Sect; Sect=$2	
+	
+	( [ "$FileSpec" = "" ] || [ "$Sect" = "" ] ) || \
+		abend '96419' "Missing arg: file ($FileSpec) or sect ($Sect)"
+	( [ -f "$FileSpec" ] && [ -r "$FileSpec" ] ) || \
+		abend '83497' "file ($FileSpec) not found or not readable"
+	
+	grep -q "\[$Sect\]" "$FileSpec";	return $?	
+}
+
+ini_get_value()
+# Purpose: get value matching parameter from ini file
+# Args:    $1:filespec $2:section $3:param
+# Returns: 0:success 1:fail
+# Stdout:  if success, the returned value, else ""
+{
+	local FileSpec; local Sect; local Param
+	FileSpec=$1; Sect=$2; Param=$3
+		
+	if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '80160' "Missing arg: sect [$Sect], param ($Param) or file ($FileSpec)" 
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '79471' "File ($FileSpec) not found or not readable" 
+	else
+		sch-crudini --get "$FileSpec" "$Sect" "$Param";	return $?
+	fi
+}
+
+ini_set_value()
+# Purpose: set value for specified param in ini file
+# Args:    $1:filespec $2:section $3:param $4:value
+# Returns: 0:success 1:fail
+# Notes:   add new section and param as necessary
+{
+	local FileSpec; local Sect; local Param; local Value
+	FileSpec=$1; Sect=$2; Param=$3; Value=$4
+	
+	if [ "$Sect" = "" ] || [ "$Param" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '35462' "Missing arg: sect [$Sect], param ($Param) or	file ($FileSpec)" 
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '12663' "File ($FileSpec) not found or not readable"
+	fi
+	
+	sch-crudini --set "$FileSpec" "$Sect" "$Param" "$Value"
+	if [ $? ]; then
+		exit 0
+	else
+		abend '49438' "unable to set [$Sect], param ($Param) or \
+			value ($Value) in file ($FileSpec)"
+	fi
+}
+
+process_is_running()
+# Purpose: report whether or not specified process is running
+# Args:    $1:process-name
+# Returns: 0:yes 1:no
+{ return pidof "$1"; }
+
+get_global_conf()
+# Purpose: get value from param=value pair in schooner global config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{ ini_get_value "$GlobalConf" 'general' "$1"; return $?; }
+
+get_user_conf()
+# Purpose: get value from param=value pair in schooner user config ini file
+# Args:    $1:param
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified param, else ""
+{ ini_get_value "$UserConf" 'general' "$1"; return $?; }
+
+set_user_conf()
+# Purpose: set value in param=value pair in schooner user config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+{ ini_set_value "$UserConf" 'general' "$1" "$2"; return $?; }
+
+abend_if_root()
+# Purpose: abort script if run by root
+# Args:    $1:GrepNo 
+# Returns: never returns - abend always exits with 9
+{
+	[ "$1" = '' ] &&  abend '80498' 'missing arg1'
+	[ "$(whoami)" != "root" ] || abend "$1" "$Script must not be run as root"
+}
+
+abend_if_not_root()
+# Purpose: abort script if not run by root
+# Args:    $1:GrepNo 
+# Returns: never returns _ abend always exits with 9
+{
+	[ "$1" = '' ] &&  abend '04116' 'missing arg1'
+	[ "$(whoami)" = "root" ] || abend "$1" "$Script must be run as root"
+}
+
+set_global_conf()
+# Purpose: set value in param=value pair in schooner global config ini file
+# Args:    $1:param $2:value
+# Returns: 0:success 1:fail
+# Note:    this function has to be placed below abend 
+{ abend-if-not-root '94485'; ini_set_value "$UserConf" 'general' "$1" "$2"; return $?; }
+
+abend_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1:GrepNo $2:process-name 
+# Returns: never returns - abend always exits with 9
+{
+	process_is_running "$2"
+	if [ "$?" = 0 ]; then
+		return 0
+	else
+		abend "$2" "aborting because process $1 is running"
+	fi
+}
+
+system_is_online()
+# Purpose: test whether system is online or not
+# Args:    none
+# Returns: 0:online 1:offline
+{
+	local TmpFile; TmpFile="$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)"
+	local WebPage; WebPage="$(read_sch_conf 'general' 'test-web-page')"	
+	
+	/usr/bin/wget -q --tries=10 --timeout=20 "$WebPage" -O "$TmpFile" &> /dev/null 
+	
+	if [ -s "$TmpFile" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+prompt_if_offline()
+# Purpose: if system is offline prompt user to take some action
+# Args:    $1:message
+# Returns: 0:online 1:offline
+{
+	system_is_online
+	if [ $? = 1 ]; then
+		prompt_y_n "system is off line. abort now? "
+		if [ $? = 1 ]; then
+			abend '46890' "system is offline and you chose to abort at prompt"
+		else
+			system_is_online
+			if [ $? = 1 ]; then
+				abend '71524' "system is offline and you chose to abort at prompt" 
+			else
+				return 0
+			fi
+		fi
+	else
+		return 0
+	fi
+}
+
+edit_file()
+# Purpose: perform sed command on a file
+# Args:    $1:sedscript $2:filespec
+# Returns: 0:success 1:fail
+{
+	file_is_regular_rw "$1" 'abort-if-fail' 
+	sed -i "$1" "$2"
+	return $?
+}
+
+edit_backup()
+# Purpose: Backup a file while we do some operation on it, making
+#          a copy (with extension .sch-bak) in the same dir as the 
+#          original file. Silently pass over non-existent file - the
+#          calling code has to deal with that. Delete any previous
+#          backup file that may be left over from failed pass.
+# Args:    $1:filespec (absolute path, regular file)
+# Returns: 0:success 1:fail or file non-existent
+{
+	local Original; local Backup
+	Original="$1"; Backup="$Original.sch-bak"
+	
+	sch-exists -s "$Original" -rwf
+	# if file to be backed up non-existent, silently fail
+	
+	check_can_write_file "$Backup"
+	
+	cp "$Original" "$Backup"; return $?	
+}
+
+edit_restore()
+# Purpose: restore a file from backup made by temp_backup
+# Args:    $1:filespec (absolute path, regular file)
+# Returns: 0:success (any other outcome causes abend)
+{
+	local Original; local Backup
+	Original="$1"; Backup="$Original.sch-bak"
+	
+	# must be fully-qualified
+	[ "$(basename $Original)" != "" ] || abend '96931' "invalid filespec ($Original)"
+	
+	# if no backup file something is very wrong
+	[ -f "$Backup" ] || abend '82072' "file ($Backup) not found"
+	[ -r "$Backup" ] || abend '88829' "file ($Backup) not readable"
+	[ -w "$Backup" ] || abend '26351' "file ($Backup) not writable"	
+	
+	# original file may or may not exist but if it does must be writable
+	if [ -f "$Original" ]; then
+		[ -r "$Original" ] || abend '50157' "file ($Original) not readable"
+		[ -w "$Original" ] || abend '66121' "file ($Original) not writable"	
+	fi
+	
+	mv "$Backup" "$Original"	
+	[ "$?" = 0 ] || abend '11951' "replace original ($Original) \
+										with backup ($Backup) failed"
+	
+	return 0
+}
+
+edit_rm_backup()
+# Purpose: remove backup 
+# Args:    $1:filespec (absolute path, regular file)
+# Returns: 0:success 1:fail
+{
+	local Backup; Backup="$1.sch-bak"
+	
+	# must be fully-qualified
+	[ "$(basename $Backup)" != "" ] || abend '52106' "invalid filespec ($Backup)"
+
+	# backup may or may not exist but if it does must be writable
+	if [ -f "$Backup" ]; then
+		[ -r "$Backup" ] || abend '61293' "file ($Backup) not readable"
+		[ -w "$Backup" ] || abend '54506' "file ($Backup) not writable"	
+	else
+		return 1
+	fi
+
+	rm -f "$Backup"
+	[ "$?" = 0 ] || abend '59848' "unable to remove backup ($Backup)"
+	 
+	return 0
+}
+
+convert_seconds_to_date()
+# Purpose: convert seconds since epoch into date
+# Args:    $1:seconds
+# Returns: 0:success 1:fail
+# Stdout:  date
+{ date --date "@$1"; }
+
+check_can_write_existent_file()
+# Purpose: Check if file exists, is regular and is readwrite. Provide
+#           option to abort the script if file fails this check.
+# Args:    $1:filespec (absolute or relative) $2: abort if value='abort-if-fail')
+# Returns: 0:yes 1:non-existent, non-regular or not readwrite
+{ 
+	local Fail; Fail=0
+	[ -f "$1" ] || Fail=1; [ -r "$1" ] || Fail=1; [ -w "$1" ] || Fail=1
+	
+	if [ $Fail -eq 1 ]; then 
+		if [ "$2" = 'abort-if-fail' ]; then
+			abend '96255' "file ($1) non-regular, non-existent or non-readwrite"
+		else
+			return 1 # silent fail
+		fi
+	else
+		return 0
+	fi
+}
+
+check_can_write_file()
+# Purpose: check that we will be able to write regular file, ie that we have
+#          permissions to overwrite existing file or create a new one in an
+#          existing directory. 
+# Args:    $1:filespec (absolute or relative) $2: abort if value='abort-if-fail')
+# Returns: 0:success 1:fail
+{
+	local Fail; Fail=0
+	
+	if [ -f "$1" ]; then
+		[ -r $1 ] || Fail=1; [ -w $1 ] || Fail=1
+	else # test if can write then delete test file
+		if [ echo > $1 ]; then
+			Fail=1
+		else
+			rm -f $1
+		fi
+	fi
+		
+	if [ $Fail -eq 1 ]; then 
+		if [ $2 = 'abort-if-fail' ]; then
+			abend '91722' "unable to write file ($1)"
+		else
+			return 1 # silent fail
+		fi
+	else
+		return 0
+	fi
+}
+
+tmpbak_mkdir()
+# Purpose:     Create a temp directory to backup files before edit so that they
+#              can be later rolled back if necessary
+# Notes:       Part of a set of functions to implement a semi-atomic rollback for 
+#              editing a group of files. See also tmpbak_addfile, tmp_rollback,
+#              tmp_cleanup.
+# Args:        None
+# Exit status: 0:success 1:fail
+# Stdout:      If exit status 0, filespec for newly created directory, else nothing
+{
+	local TmpDir; TmpDir="$(mktemp -d)"
+
+	if [ "$?" != 0 ]; then
+		abend '32789' "unable to create temp dir $TmpDir"
+	else
+		chmod a-rw; chmod u+rw
+		echo "$TmpDir"; return 0		
+	fi
+}
+
+tmpbak_rollback()
+# Purpose:     Rollback files by replacing them with copies previously saved
+#              in temp dir.
+# Notes:       Part of a set of functions to implement a semi-atomic rollback for 
+#              editing a group of files. See also tmpbak_addfile, tmp_mkdir,
+#              tmp_cleanup.
+# Args:        $1: filespec for temp dir
+# Exit status: 0:success 1:fail
+
+{
+	echo "not implemented"
+}
+
+tmpbak_cleanup()
+# Purpose:     Remove temp backup directory with all files
+# Notes:       Part of a set of functions to implement a semi-atomic rollback for 
+#              editing a group of files. See also tmpbak_addfile, tmpbak_rollback,
+#              tmpbak_mkdir.
+# Args:        $1: filespec for temp dir
+# Exit status: 0:success 1:fail
+{
+	local TmpDir; local Err; 
+	TmpDir="$1"; Err="$(sch-exists -s $TmpDir -drw)"
+	
+	if [ "$?" != 0 ]; then
+		abend '44471' "unable to remove temp directory ($TmpDir): it is $ErrStr"; exit 1
+	fi	
+	
+	rm -rf "$TmpDir"
+
+	if [ "$?" != 0 ]; then
+		abend '65263' "unable to remove temp directory ($TmpDir)"; exit 1
+	else
+		return 0		
+	fi
+}
+
+backup_rotate()
+# Purpose:     Backup a single file (or directory) into a specified backup directory
+#              keeping the backed-up files rotated so that a specified number are 
+#              kept as the oldest is deleted each time a backup is made.
+#            
+#              Backup files (or directories) are named as follows:
+#              <username>-<description>-<timestamp> for example:
+#              fred-importantstuff-2014-10-08-21-16-27
+#
+# Notes:       For the present,here's no provision for automated restore.    
+# Args:        $1: filespec of "source" file or dir to backup
+#              $2: filespec of dir to backup to
+#              $3: backupname - descriptive name for backup (see fred example above)
+#              $4: number of older backup copies to keep
+#
+# Exit status: 0:success 
+#              1:fail
+{
+	local SourceDir; SourceDir="$1"
+	local BakDir; BakDir="$2"
+	local BakName; BakName="$3"
+	local MaxBaksToKeep; MaxBaksToKeep="$4"
+	local TimeStamp; TimeStamp=$(date +"%Y-%m-%d-%H-%M-%S")
+	local User; User="$(whoami)"
+	local BakFileSpec; BakFileSpec="$BakDir/$User-$BakName-$TimeStamp"
+	
+	Err="$(sch-exists -s "$SourceDir" -rd)"
+	if [ "$?" != 0 ]; then
+		abend '13803' "$BakName backup can't read source dir ($SourceDir) it is $Err"
+	fi
+	
+	Err="$(sch-exists -s "$BakDir" -rwd)"
+	[ "$?" = 0 ] || mkdir -p "$BakDir"
+	if [ "$?" != 0 ]; then
+		abend '03488' "$BakName backup can't create backup dir ($BackupDir)"
+	fi
+	
+	chmod a+r,a-w,u+w "$BakDir"
+	if [ "$?" != 0 ]; then
+		abend '25640' "$BakName backup can't set permissions for backup dir ($BackupDir)"
+	fi	
+	
+	rsync -avzq "$SourceDir" "$BakFileSpec"; [ "$?" -eq 0 ] || return 1
+
+	# Check that we actually created backup
+	Err="$(sch-exists -s "$BakFileSpec" -rw)"
+	if [ "$?" != 0 ]; then
+		abend '81643' "$BakName backup failed to create $BakFileSpec it is $Err"
+	fi		
+	
+	#Rotate backup dir - if more than $MaxBaksToKeep files exist, remove oldest
+	# TODO Shell Check says should use find instead of ls 'to better 
+	# handle non-alphanumeric filenames
+	if [ $(ls -A "$BakDir" |wc -l) -gt "$MaxBaksToKeep" ]; then
+		cd "$BakDir" && rm -Rf "$(ls -tr | head -n 1)"
+	fi
+	
+	return 0 # TODO check that rotation is working ok if not could return 1?
+}
+
+# eof helpers ==================================================================

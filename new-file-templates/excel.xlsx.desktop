@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=MS Excel 2007->2013 ...
+Comment=Enter Excel filename:
+Icon=application-vnd.ms-excel
+Name[en_GB]=MS Excel 2007->2013 ...
+Type=Link
+URL[$e]=.source/excel.xlsx

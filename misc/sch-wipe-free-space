@@ -1,0 +1,140 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-wipe-free-space
+# Created:   01/10/2014
+# Purpose:   overwrite free space on drive containing specified directory
+#            with single blanking pass.
+# Author:    Bill Cane
+# Email:     emailx
+# Copyright: © Bill Cane
+# Based On:  www.superuser.com/questions/19326/how-to-wipe-free-disk-space-in-linux
+# Notes; This script will likely leave readable data on the disk. It is intended 
+# only to impede recovery of stuff like passwords if malware runs a recovery tool
+# like photo_rec, and to provide some privacy protection if another user runs an 
+# "undelete" tool. Nothing is guaranteed!            
+#
+# More Notes:The original author comments "The purpose of the small file is to reduce
+# the time when free space is completely zero; the purpose of sync is to make sure the
+# data is actually written. This should be good enough for most people...there is no 
+# documented case of data being recovered after this cleaning. It would be expensive 
+# and resource demanding, if possible at all."
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+# Purpose: describe usage of this script
+# Args:    none
+# Returns: 0 success
+{
+cat << EOF
+NAME
+       sch-wipe-free-space - overwrite free space on drive containing specified 
+       directory with a single blanking pass
+
+SYNOPSIS
+       sch-wipe-free-space [OPTIONS]...
+       
+       -c clean-up
+             find and delete "wipe" files previously created by this script.
+             
+       -d [directory on drive to be free-space-wiped]
+             wipe free space on the drive or partition where a directory is located.
+
+DESCRIPTION
+       This script will provide some privacy protection by making recovery of 
+       sensitive material (for example by another user's undelete app) much less
+       likely, but cannot be relied on to erase everything - recoverable data 
+       will possibly be left on some parts of the disk drive. 
+       
+       The script makes only one blanking pass - running it more once 
+       probably won't improve results much. Neither will programs that make 
+       multiple passes writing random patterns, because it is much more
+       likely that sensitive material will be recovered from parts of 
+       the disk that were missed, than from the parts that were wiped.
+ 
+       The -c clean-up option may take several minutes to search your system for 
+       discarded wipe files. To remove wipe files created with restrictive 
+       permissions by other users, run sudo sch-wipe-free-space -c
+       
+EXIT STATUS
+       0      Succeeded
+       1      Failed for any reason    
+       
+USAGE
+       sch-wipe-free-space -d "/some/writable/dir/on/the/drive/to/be/wiped"
+        
+EOF
+}
+
+# string to uniquely identify our wipe file so can safely clean them up anywhere
+# they may've been left.
+readonly UniqueStr="68Q7NPYdfqbFS3FEv" 
+
+clean_up_debris()
+# Purpose: Locate and attempt to delete any wipe files created by this 
+#          script.  It will only suceed if the user running this script 
+#          has the requisite permissions, or if the script is run by root.
+# Args:    None
+# Returns: 0
+
+{
+	# Don't mess with this bit! Script could be run as root!
+	find / -type f -name "sch-wipe-free-space-$UniqueStr*" -exec rm -f {} \;
+}
+
+WipeDir=""
+CleanUp=1
+
+[ "$1" != '' ] || { usage; exit 1; }
+
+while getopts "d:c" Option
+do
+	case "$Option" in		
+		d ) WipeDir=$OPTARG ;;
+		c ) CleanUp=0; clean_up_debris; exit 0 ;;
+		* ) usage; exit 1 ;;			   
+	esac
+done
+
+readonly BigFile="$WipeDir/sch-wipe-free-space-$UniqueStr-big"
+
+# small file is to reduce the time when free space is completely zero
+readonly SmallFile="$WipeDir/sch-wipe-free-space-$UniqueStr-small"
+
+ErrMsg="$(sch-exists -s "$WipeDir" -drw)"
+
+if [ "$?" != 0 ]; then
+	echo "unable to wipe from directory ($WipeDir) because $ErrMsg"
+	exit 1
+fi
+
+# clear up debris from any failed previous run on same directory
+rm -f "$SmallFile" || { echo "failed to clean up wipe file ($SmallFile)"; exit 1; }
+rm -f "$BigFile" || { echo "failed to clean up wipe file ($BigFile)"; exit 1; }
+
+# write the overwrite files
+dd if=/dev/zero of="$SmallFile" bs=1024 count=102400
+dd if=/dev/zero of="$BigFile" bs=1024 || { echo "failed to ceate wipe file"; exit 1; }
+
+# sync to ensure data is actually written
+sync ; sleep 120 ; sync # original script had sleep 60
+
+# clean up
+rm -f "$SmallFile" || { echo "failed to clean up wipe file ($SmallFile)"; exit 1; }
+rm -f "$BigFile" || { echo "failed to clean up wipe file ($BigFile)"; exit 1; }
+exit 0
+
+
